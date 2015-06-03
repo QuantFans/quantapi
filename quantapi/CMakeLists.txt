@@ -5,11 +5,11 @@ FILE(GLOB source
     "*.cpp" 
 )
 
-ADD_LIBRARY (trader_api ${source})
+ADD_LIBRARY (quantapi ${source})
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 
 
-TARGET_LINK_LIBRARIES (trader_api
+TARGET_LINK_LIBRARIES (quantapi
 	${CTP_MD_LIB}
 	${CTP_TRADER_LIB}
     util

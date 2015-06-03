@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cstring>
 #include <stdarg.h>
-#include "Functions.h"" 
+#include "Functions.h"
 #include "log_assert.h" 
 /// @todo define WIN32 in cmake
 #ifdef WIN32

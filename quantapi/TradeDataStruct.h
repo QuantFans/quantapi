@@ -8,7 +8,7 @@
 #include <mutex>
 #include <iostream>
 #include "ctp/ThostFtdcUserApiStruct.h" 
-#include "../util/Functions.h"" 
+#include "../util/Functions.h"
 #include "mapping.h" 
 
 #define INVALID_NUMBER -1

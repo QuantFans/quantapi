@@ -14,7 +14,7 @@
 #include <string>
 #include <mutex>
 #include "../Quoter.h" 
-#include "../TradeDataStruct.h"" 
+#include "../TradeDataStruct.h"
 #include "ThostFtdcMdApi.h" 
 namespace QuantDigger {
 class CtpQuoterCallBack;
