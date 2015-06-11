@@ -13,7 +13,6 @@
 #ifndef __SINGLETON_H_
 #define __SINGLETON_H_
 
-namespace QuantDigger {
 namespace Util {
     
 
@@ -50,7 +49,6 @@ template <class T> typename Singleton<T>::object_creator Singleton<T>::create_ob
 #define DECLARE_SINGLETON_CLASS( ObjClass ) \
    friend class QuantDigger::Util::Singleton<ObjClass>
 
-};
 
 } /* Util */
 #endif  /** __SINGLETION_H_ */

@@ -16,7 +16,7 @@
 #define TRACE_INFO " (" __FILE__ ":" TOSTRING(__LINE__) ")"
 
 
-using namespace QuantDigger::Util;
+using namespace Util;
 using namespace std::chrono;
 
 // 如果输出消息长度超过它，将被截断。
@@ -310,7 +310,7 @@ const Logger::Level Logger::getLevelFromString(const std::string& levelStr)
 }
 
 // create and return the single instance
-Logger& QuantDigger::Util::logger()
+Logger& Util::logger()
 {
     // 唯一的同步记录器
     static Logger instance(false);

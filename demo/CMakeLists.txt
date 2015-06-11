@@ -1,0 +1,19 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
+
+
+ADD_EXECUTABLE(ctp_demo
+    ctp_demo.cpp
+    )
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
+
+
+TARGET_LINK_LIBRARIES (ctp_demo
+	${CTP_MD_LIB}
+	${CTP_TRADER_LIB}
+    util
+    quantapi
+    )
+
+INSTALL (TARGETS ctp_demo
+    DESTINATION "${BINARY_DIR}/")
+

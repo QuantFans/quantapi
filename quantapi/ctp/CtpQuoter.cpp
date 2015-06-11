@@ -14,114 +14,169 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdio>
-#include "CtpQuoterCallBack.h"
+
+#include "CtpMapping.h" 
 
 tm g_today;   ///< 当日日期，在登入交易接口的时候被初始化。
-namespace QuantDigger {
+namespace QuantApi {
 using namespace std;
 
-CtpQuoter::CtpQuoter(char *trade_front, CtpQuoterCallBack *cbk_object) {
-    assert(trade_front && cbk_object);
-    spi_ = cbk_object;
+CtpQuoter::CtpQuoter(char *trade_front) {
+    assert(trade_front);
     api_ = CThostFtdcMdApi::CreateFtdcMdApi();
-    api_->RegisterSpi(spi_);
-    spi_->set_quoter(this);
+    api_->RegisterSpi(this);
     locked_ = false;
     registerFront(trade_front, true);
-    init();
-    wait(true);      // 回调在init之后才会运行！
+    std::cout<<"----<<std::endl;"<<std::endl;
+    api_->Init(); // 回调在init之后才会运行！
+    std::cout<<"----<<std::endl;" <<std::endl;
+    wait(true);      
+    std::cout<<"----<<std::endl;" <<std::endl;
 };
 
 CtpQuoter::~CtpQuoter(){ 
-    join();
-    release();
+    api_->Join();
+    api_->Release();
 };
 
-void CtpQuoter::registerFront(char *pszFrontAddress, bool syn) {
-    if (syn) synLock();
-    RegisterFront(pszFrontAddress);
+void CtpQuoter::registerFront(char *pszFrontAddress, bool sync) {
+    if (sync) synLock();
+    api_->RegisterFront(pszFrontAddress);
 }
 
-void CtpQuoter::login(const char *broker_id,
-                      const char *user_id,
-                      const char *password,
-                      bool syn) {
-    if (syn) synLock();
-    ReqUserLogin(broker_id, user_id, password);
-    wait(syn);
-}
-
-void CtpQuoter::logout(const char *broker_id, const char *user_id, bool syn) {
-    if (syn) synLock();
-    ReqUserLogout(broker_id, user_id);
-    wait(syn);
-}
-
-void CtpQuoter::subscribeMarketData(const std::vector<Contract> &instruments, bool syn) {
-    char **instrumentsL  = new char*[instruments.size()];
-    for (int i = 0; i < instruments.size(); i++) {
-        instrumentsL[i] = const_cast<char*>(instruments[i].code.c_str());
-    }
-    if (syn) synLock();
-    SubscribeMarketData(instrumentsL,  instruments.size());
-    wait(syn);
-    delete [] instrumentsL;
-}
-
-void CtpQuoter::unsubscribeMarketData(const std::vector<Contract> &instruments, bool syn) {
-    char **instrumentsL  = new char*[instruments.size()];
-    for (int i = 0; i < instruments.size(); i++) {
-        instrumentsL[i] = const_cast<char*>(instruments[i].code.c_str());
-    }
-    if (syn) synLock();
-    UnSubscribeMarketData(instrumentsL,  instruments.size());
-    wait(syn);
-    delete [] instrumentsL;
-}
-
-// ---------------------------------------------------------------------------------------
-void CtpQuoter::ReqUserLogin(const char *broker_id, const char* user_id, const char *password)
-{
-  
+int CtpQuoter::login(const LogonInfo &info, bool sync) {
+    if (sync) synLock();
 	CThostFtdcReqUserLoginField req;
 	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, broker_id); 
-	strcpy(req.UserID, user_id); 
-	strcpy(req.Password, password);
+	strcpy(req.BrokerID, info.broker_id); 
+	strcpy(req.UserID, info.user_id); 
+	strcpy(req.Password, info.password);
 	int ret = api_->ReqUserLogin(&req, nextRequestId());
-    cerr<<" sending | 窟僕鞠村..."<<((ret == 0) ? "撹孔" :"払移") << endl;	
+    cerr<<"try login..."<<((ret == 0) ? "sucessed" :"failed") << endl;	
+    wait(sync);
 }
 
-void CtpQuoter::ReqUserLogout(const char *broker_id, const char *user_id) {
+int CtpQuoter::logout(const LogonInfo &info, bool sync) {
+    if (sync) synLock();
     CThostFtdcUserLogoutField req;
 	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, broker_id); 
-	strcpy(req.UserID, user_id); 
+	strcpy(req.BrokerID, info.broker_id); 
+	strcpy(req.UserID, info.user_id); 
 	int ret = api_->ReqUserLogout(&req, nextRequestId());
-    cerr<<" sending | 窟僕曜竃..."<<((ret == 0) ? "撹孔" :"払移") << endl;	
+    cerr<<"try logout..."<<((ret == 0) ? "sucessed" :"failed") << endl;	
+    wait(sync);
+    return ret;
 }
 
-int CtpQuoter::UnSubscribeMarketData(char *ppInstrumentID[], int nCount) {
-	int ret = api_->UnSubscribeMarketData(ppInstrumentID, nCount);
-    if(0 == ret)
-        cout<<"SubscribeMarketData sucess"<<endl;
-    else
-        cout<<"SubscribeMarketData error"<<endl;
+int CtpQuoter::reqTick(const std::vector<Contract> &instruments, bool sync) {
+    char **instrumentsL  = new char*[instruments.size()];
+    for (int i = 0; i < instruments.size(); i++) {
+        instrumentsL[i] = const_cast<char*>(instruments[i].code.c_str());
+    }
+    if (sync) synLock();
+	int ret = api_->SubscribeMarketData(instrumentsL, instruments.size());
+    delete [] instrumentsL;
+    wait(sync);
+    return ret;
+}
+
+int CtpQuoter::unReqTick(const std::vector<Contract> &instruments, bool sync) {
+    char **instrumentsL  = new char*[instruments.size()];
+    for (int i = 0; i < instruments.size(); i++) {
+        instrumentsL[i] = const_cast<char*>(instruments[i].code.c_str());
+    }
+    if (sync) synLock();
+	int ret = api_->UnSubscribeMarketData(instrumentsL, instruments.size());
+    delete [] instrumentsL;
+    wait(sync);
+    return ret;
+}
+
+void CtpQuoter::on_tick(const TickData &tick) const {
+
+}
+
+// --------------------------- call back -------------------------------------------------
+
+void CtpQuoter::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData) {
+        TickData tick;
+        Mapping::fromCtpTick(*pDepthMarketData, &tick);
+        on_tick(tick);
+}
+
+void CtpQuoter::OnHeartBeatWarning(int nTimeLapse) {
+}
+
+void CtpQuoter::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, 
+                               CThostFtdcRspInfoField *pRspInfo, 
+                               int nRequestID, 
+                               bool bIsLast) {
+    if ( !IsErrorRspInfo(pRspInfo) && pRspUserLogin ) {  
+        // 保存会话参数	
+//        set_logined(true);
+        set_front_id(pRspUserLogin->FrontID);
+        set_session_id(pRspUserLogin->SessionID);
+//        cerr<<" 响应 | 登录成功...当前交易日:"
+//            <<pRspUserLogin->TradingDay<<endl
+//            <<session_id()<<endl;
+        cerr<<"OnRspUserLogin"<<std::endl;
+        // 记录当期日期
+//        Util::ctpStrDate2Tm(pRspUserLogin->TradingDay, &g_today);
+    }
+    if(bIsLast) synUnlock();
+}
+
+void CtpQuoter::OnRspError(CThostFtdcRspInfoField *pRspInfo, 
+                           int nRequestID, 
+                           bool bIsLast) {
+  if(bIsLast) synUnlock();
+}
+
+void CtpQuoter::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, 
+                                CThostFtdcRspInfoField *pRspInfo, 
+                                int nRequestID, 
+                                bool bIsLast) {
+  if(bIsLast) synUnlock();
+}
+
+void CtpQuoter::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument,
+                                     CThostFtdcRspInfoField *pRspInfo,
+                                     int nRequestID,bool bIsLast) {
+  if(bIsLast) synUnlock();
+}
+
+void CtpQuoter::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, 
+                                   CThostFtdcRspInfoField *pRspInfo, 
+                                   int nRequestID, 
+                                   bool bIsLast) {
+    if (!IsErrorRspInfo(pRspInfo)) {
+//        cerr<<"响应 | 最新数据！"<<endl;
+        cerr<<"OnRspSubMarketData"<<endl;
+    } else {
+        cerr<<"************"<<endl;
+    }
+  if(bIsLast) synUnlock();
+}
+
+void CtpQuoter::OnFrontConnected() {
+	cerr<<" quoter front connectd..."<<endl;
+    synUnlock();
+}
+
+void CtpQuoter::OnFrontDisconnected(int nReason) {
+	cerr<<" 响应 | 连接中断..." 
+	  << " reason=" << nReason << endl;
+}
+
+
+bool CtpQuoter::IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo) {
+	// 如果ErrorID != 0, 说明收到了错误的响应
+	bool ret = ((pRspInfo) && (pRspInfo->ErrorID != 0));
+  if (ret){
+    cerr<<" Error | "<<pRspInfo->ErrorMsg<<endl;
+  }
 	return ret;
 }
 
-int CtpQuoter::SubscribeMarketData(char *ppInstrumentID[], int nCount) {
-	int ret = api_->SubscribeMarketData(ppInstrumentID, nCount);
-    if(0 == ret)
-        cout<<"SubscribeMarketData sucess"<<endl;
-    else
-        cout<<"SubscribeMarketData error"<<endl;
-	return ret;
-}
-
-void CtpQuoter::RegisterFront(char *pszFrontAddress) {
-    api_->RegisterFront(pszFrontAddress);
-    cerr<<"Register Front..."<<endl;
-}
 
 } /* QuantDigger */

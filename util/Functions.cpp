@@ -3,7 +3,6 @@
 #include <ctime>
 #include "log_assert.h" 
 #include "definition.h"
-namespace QuantDigger {
 namespace Util {
 
 void ctpStrDate2Tm(const char* str, tm *t) {
@@ -138,4 +137,3 @@ std::string formatString(const char *fmt, ...) {
 }
 
 } /* Util */
-} /* QuantDigger */

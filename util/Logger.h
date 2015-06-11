@@ -13,8 +13,6 @@
 #include <mutex>
 #include <thread>
 
-namespace QuantDigger
-{
 namespace Util {
 template<typename Data>
 class concurrent_queue
@@ -130,7 +128,7 @@ public:
      * @param level  级别  
      * @param print_time 是否显示时间戳
      */
-    Logger(bool async = false, const std::string &fileName = "quantdigger.log",
+    Logger(bool async = false, const std::string &fileName = "QuantApi.log",
            Level level = INFO, bool print_time = true);
 
     Logger(const Logger&)=delete;
@@ -268,6 +266,5 @@ private:
 Logger& logger();
 
 } /* Util */
-} 
 
 #endif // _OPENCOG_LOGGER_H

@@ -27,7 +27,7 @@
 #include "Exceptions.h"
 #include "definition.h"
     
-void QuantDigger::Util::cassert(const char * trace, bool condition, const char *fmt, ...)
+void Util::cassert(const char * trace, bool condition, const char *fmt, ...)
 {
     if (condition) return;
     va_list        ap;
@@ -43,11 +43,11 @@ void QuantDigger::Util::cassert(const char * trace, bool condition, const char *
     throw ex;
 }
 
-//void QuantDigger::Util::cassert(const char* trace, bool condition, const std::string& msg) {
+//void Util::cassert(const char* trace, bool condition, const std::string& msg) {
 //    cassert(trace, condition, msg.c_str());
 //}
 
-void QuantDigger::Util::cassert(const char * trace, bool condition)
+void Util::cassert(const char * trace, bool condition)
 {
     if (condition) return;
     AssertionException ex = AssertionException(trace);

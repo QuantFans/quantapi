@@ -1,9 +1,10 @@
 #include <ctime>
-#include "TradeDataStruct.h"
+#include "datastruct.h"
+#include "mapping.h"
 
 extern tm g_today;
 
-using namespace QuantDigger;
+using namespace QuantApi;
 using namespace std;
     
 std::vector<DateTime> 
@@ -34,6 +35,10 @@ Contract::getStrTradingTime(const Contract &contract) {
     rst.push_back("13:30:00");
     rst.push_back("15:00:00");
     return rst;
+}
+
+std::string Contract::toString() const {
+   return std::string(map2ReadableExchType(exch_type)) + "--" + code; 
 }
 
 std::chrono::milliseconds Contract::tickPeriod(const Contract &contract) {

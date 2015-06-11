@@ -14,3 +14,7 @@ TARGET_LINK_LIBRARIES (quantapi
 	${CTP_TRADER_LIB}
     util
     )
+
+INSTALL (TARGETS quantapi
+    DESTINATION "${BINARY_DIR}/lib/")
+

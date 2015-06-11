@@ -12,8 +12,8 @@
 #include <vector>
 #include <string>
 #include <atomic>
-#include "TradeDataStruct.h" 
-namespace QuantDigger {
+#include "datastruct.h" 
+namespace QuantApi {
     
 /**
  * @brief 行情查询发起类的基类。
@@ -27,14 +27,47 @@ class Quoter{
         set_logined(false);
     }
     virtual ~Quoter(){ }
-    virtual void login(const char *broker_id, const char *user_id, const char *password, bool syn) = 0;
-    virtual void logout(const char *broker_id, const char *user_id, bool syn) = 0 ;
-    /** @brief 订阅合约品种 */
-    virtual void subscribeMarketData(const std::vector<Contract> &instruments, bool syn) = 0;
-    /** @brief 取消订阅合约品种 */
-	virtual void unsubscribeMarketData(const std::vector<Contract> &instruments, bool syn) = 0;
+    /** @brief 帐号登录。 */
+    virtual int login(const LogonInfo &info, bool sync=true) = 0;
+    /** @brief 帐号退出。 */
+    virtual int logout(const LogonInfo &info,  bool sync) = 0;
+     
+    /**
+     * @brief 订阅tick数据。    
+     *
+     * @param instruments 合约集合。
+     * @param sync 是否同步调用。
+     *
+     * @return 
+     */
+    virtual int reqTick(const std::vector<Contract> &instruments, bool sync) = 0;
+
+    /**
+     * @brief 取消tick数据订阅。
+     *
+     * @param instruments 合约结合。
+     * @param sync 是否同步调用。
+     *
+     * @return 
+     */
+	virtual int unReqTick(const std::vector<Contract> &instruments, bool sync) = 0;
+
+    /**
+     * @brief tick数据到达回调函数。
+     *
+     * @param tick 
+     */
+    virtual void on_tick(const TickData &tick) const = 0;
+    /**
+     * @brief 当前日期
+     *
+     * @note 只有登录成功后,才能得到正确的交易日。
+     * @return 
+     */
+    virtual std::string getTradingDay() = 0;
+
+
  private:
-    friend class QuoterCallBackBase;
     void set_logined(bool b){
         logined_.store(b);
     };
@@ -43,5 +76,5 @@ class Quoter{
     std::atomic<bool>   logined_;
 };
 
-} /* QuantDigger */
+} /*  QuantApi */
 #endif /* end of include guard: _QUOTER_H_ */

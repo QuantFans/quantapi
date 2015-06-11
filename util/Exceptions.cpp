@@ -36,7 +36,7 @@
 
 #define MAX_MSG_LENGTH 1024
 
-using namespace QuantDigger::Util;
+using namespace Util;
 
 /**
  * ----------------------------------------------------------------------------

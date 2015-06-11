@@ -21,7 +21,6 @@
 #include "log_assert.h"
 #include "definition.h"
 #include "Exceptions.h" 
-namespace QuantDigger {
 namespace Util {
 typedef std::chrono::system_clock::time_point DateTime;
 
@@ -243,5 +242,4 @@ std::string formatString(const char *fmt, ...);
 
 
 } /* Util */
-} /* QuantDigger */
 #endif /* end of include guard: QUANTDIGGER_UTIL_FUNCTIONS_H */

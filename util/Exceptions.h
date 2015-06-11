@@ -23,8 +23,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef QUANTDIGGER_EXCEPTIONS_H
-#define QUANTDIGGER_EXCEPTIONS_H
+#ifndef QuantApi_EXCEPTIONS_H
+#define QuantApi_EXCEPTIONS_H
 
 #include <string>
 
@@ -35,8 +35,6 @@
 #define TOSTRING(x) STRINGIFY(x)
 #define TRACE_INFO " (" __FILE__ ":" TOSTRING(__LINE__) ")"
 
-namespace QuantDigger
-{
 namespace Util {
     
 
@@ -269,6 +267,5 @@ public:
 };
 
 } /* Util */
-} // namespace QuantDigger
 
-#endif // QUANTDIGGER_EXCEPTIONS_H
+#endif // QuantApi_EXCEPTIONS_H

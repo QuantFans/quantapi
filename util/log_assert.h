@@ -36,13 +36,12 @@
  *
 */
 #define LOG_ASSERT(...) \
-    QuantDigger::Util::cassert(TRACE_INFO, __VA_ARGS__)
+    Util::cassert(TRACE_INFO, __VA_ARGS__)
 #else
 #define LOG_ASSERT(...) \
     ((void)0)
 #endif
 
-namespace QuantDigger{
 namespace Util {
     
 
@@ -62,6 +61,5 @@ void cassert(const char * trace,  bool condition, const char * msg, ...);
 void cassert(const char * trace, bool condition);
 
 } /* Util */
-} // namespace QuantDigger
 
 #endif
