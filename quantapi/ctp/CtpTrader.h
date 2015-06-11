@@ -99,7 +99,6 @@ public:
 
 	void ReqSettlementInfoConfirm();
 
-    void RegisterFront(char *pszFrontAddress);
 
 //------------------------------------------------------
 

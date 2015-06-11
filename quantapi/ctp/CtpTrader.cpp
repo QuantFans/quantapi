@@ -42,7 +42,8 @@ CtpTrader::~CtpTrader() {
 
 void CtpTrader::registerFront(char *pszFrontAddress, bool syn) {
     if (syn) synLock();
-    RegisterFront(pszFrontAddress);
+    api_->RegisterFront(pszFrontAddress);
+    cerr<<"registerFront..."<<endl;
 }
 
 int CtpTrader::login(const LogonInfo &info,
@@ -278,11 +279,6 @@ void CtpTrader::ReqQrySettlementInfo(const char *broker_id,
     strcpy(pQrySettlementInfo.InvestorID, investor_id);
     strcpy(pQrySettlementInfo.TradingDay, trading_day);
     api_->ReqQrySettlementInfo(&pQrySettlementInfo, nextRequestId());
-}
-
-void CtpTrader::RegisterFront(char *pszFrontAddress) {
-    api_->RegisterFront(pszFrontAddress);
-    cerr<<"äE¿¡×¡ÛÅÄî´Þ..."<<endl;
 }
 
 char MapOffset(char src, bool toOrig=true){
