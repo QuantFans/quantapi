@@ -26,11 +26,10 @@ class CtpQuoterCallBack;
 * 可通过锁来同步请求实例和回调实例来完成一个操作
 */
 class CtpQuoter : public Quoter, private CThostFtdcMdSpi{
+
  public:
     CtpQuoter(char *trade_front);
     virtual ~CtpQuoter();
-
- public:
 
     /** @brief 帐号登录。 */
     virtual int login(const LogonInfo &info, bool sync=true);
@@ -41,43 +40,47 @@ class CtpQuoter : public Quoter, private CThostFtdcMdSpi{
     /**
      * @brief 订阅tick数据。    
      *
-     * @param instruments 合约集合。
+     * @param contracts 合约集合。
      * @param sync 是否同步调用。
      *
      * @return 
      */
-    virtual int reqTick(const std::vector<Contract> &instruments, bool sync);
+    virtual int reqTick(const std::vector<Contract> &contracts, bool sync);
 
     /**
      * @brief 取消tick数据订阅。
      *
-     * @param instruments 合约结合。
+     * @param contracts 合约集合。
      * @param sync 是否同步调用。
      *
      * @return 
      */
-	virtual int unReqTick(const std::vector<Contract> &instruments, bool sync);
+	virtual int unReqTick(const std::vector<Contract> &contracts, bool sync);
 
-    /**
-     * @brief tick数据到达回调函数。
-     *
-     * @param tick 
-     */
-    virtual void on_tick(const TickData &tick) const;
     /**
      * @brief 当前日期
      *
      * @note 只有登录成功后,才能得到正确的交易日。
-     * @return 
      */
     virtual std::string getTradingDay()  { api_->GetTradingDay(); }
-        
+
+protected:
+
+    /** @brief tick数据到达回调函数。*/
+    virtual void on_tick(const TickData &tick) { }
 
  private:
 
     inline void synLock() { syn_flag_.lock(); locked_ = true;}
     inline void synUnlock() { if(locked_) { syn_flag_.unlock(); locked_ = false; }}
     inline void wait(bool towait) { if(towait) { synLock(); synUnlock(); }}
+
+    inline int nextRequestId() { return ++request_id_; }
+
+    inline void set_front_id(int id) { front_id_ = id; }
+    inline void set_session_id(int id) { session_id_ = id; }
+    inline int session_id() { return session_id_; }
+    inline int front_id(int id) { return front_id_; }
 
 	///注册名字服务器网络地址
 	///@param pszNsAddress：名字服务器网络地址。
@@ -91,10 +94,8 @@ class CtpQuoter : public Quoter, private CThostFtdcMdSpi{
 	///@remark 网络地址的格式为：“protocol://ipaddress:port”，如：”tcp://127.0.0.1:17001”。 
 	///@remark “tcp”代表传输协议，“127.0.0.1”代表服务器地址。”17001”代表服务器端口号。
 	void registerFront(char *pszFrontAddress, bool sync);
-	
-    inline int nextRequestId() { return ++request_id_; }
 
- private:
+
     // ---------------------- 回调函数 ------------------------------
 	///当客户端与交易后台建立起通信连接时（还未登录前），该方法被调用。
 	virtual void OnFrontConnected();
@@ -143,39 +144,17 @@ class CtpQuoter : public Quoter, private CThostFtdcMdSpi{
 	///深度行情通知
 	virtual void OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData);
 
- protected:
-
-    inline void set_front_id(int id) { 
-        front_id_ = id;
-    }
-
-    inline void set_session_id(int id) { 
-        session_id_ = id;
-    }
-    inline int session_id() {
-        return session_id_;
-    }
-    inline int front_id(int id) {
-        return front_id_;
-    }
-
-
-public:
     /**
      * @brief 是否是错误的回调响应。
      *
      * 如果是错误的，会输出错误原因。
      */
 	bool IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo);
-private:
 
-    TThostFtdcBrokerIDType broker_id_;
-    TThostFtdcUserIDType user_id_;
-
- public:
+ private:
     int                 front_id_;	            ///< 前置编号
     int                 session_id_;	        ///< 会话编号
- private:
+
     CThostFtdcMdApi     *api_;                  ///< 请求实例
     int                 request_id_;            ///< 会话编号
     std::mutex          syn_flag_;              ///< 与回调的同步信号。

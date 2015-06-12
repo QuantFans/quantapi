@@ -24,7 +24,7 @@ typedef std::chrono::duration<size_type, std::ratio<1,10>> TriggerTimeUnit; ///<
 /**
  * @brief 成交方式。
  */
-enum DealType {
+enum PriceType {
     kLimit,
     kMarket,
     kMilliseconds,
@@ -53,8 +53,8 @@ enum OrderStatus {
  * @brief 开平仓方向。
  */
 enum Direction {
-    kDuo,
-    kKong
+    LONG,
+    SHORT
 };
 
 /**
@@ -70,8 +70,6 @@ enum TradeSide {
    kKai, ///< 开仓
    kPing ///< 平仓
 };
-
-
 
 struct LogonInfo {
     LogonInfo(const char *bid, const char *uid, const char *pwd) 
@@ -122,61 +120,8 @@ struct Contract {
     ExchType    exch_type;  ///< 交易所编码
     float long_margin_ratio; ///< 多头保证金率
     float short_margin_ratio; ///<  空头保证金率
-
-
-//	///合约名称
-//	TThostFtdcInstrumentNameType	InstrumentName;
-//	///合约在交易所的代码
-//	TThostFtdcExchangeInstIDType	ExchangeInstID;
-//	///产品代码
-//	TThostFtdcInstrumentIDType	ProductID;
-//	///产品类型
-//	TThostFtdcProductClassType	ProductClass;
-//	///交割年份
-//	TThostFtdcYearType	DeliveryYear;
-//	///交割月
-//	TThostFtdcMonthType	DeliveryMonth;
-//	///市价单最大下单量
-//	TThostFtdcVolumeType	MaxMarketOrderVolume;
-//	///市价单最小下单量
-//	TThostFtdcVolumeType	MinMarketOrderVolume;
-//	///限价单最大下单量
-//	TThostFtdcVolumeType	MaxLimitOrderVolume;
-//	///限价单最小下单量
-//	TThostFtdcVolumeType	MinLimitOrderVolume;
-//	///合约数量乘数
-//	TThostFtdcVolumeMultipleType	VolumeMultiple;
-//	///最小变动价位
-//	TThostFtdcPriceType	PriceTick;
-//	///创建日
-//	TThostFtdcDateType	CreateDate;
-//	///上市日
-//	TThostFtdcDateType	OpenDate;
-//	///到期日
-//	TThostFtdcDateType	ExpireDate;
-//	///开始交割日
-//	TThostFtdcDateType	StartDelivDate;
-//	///结束交割日
-//	TThostFtdcDateType	EndDelivDate;
-//	///合约生命周期状态
-//	TThostFtdcInstLifePhaseType	InstLifePhase;
-//	///当前是否交易
-//	TThostFtdcBoolType	IsTrading;
-//	///持仓类型
-//	TThostFtdcPositionTypeType	PositionType;
-//	///持仓日期类型
-//	TThostFtdcPositionDateTypeType	PositionDateType;
-//	///多头保证金率
-//	TThostFtdcRatioType	LongMarginRatio;
-//	///空头保证金率
-//	TThostFtdcRatioType	ShortMarginRatio;
-//	///基础商品代码
-//	TThostFtdcInstrumentIDType	UnderlyingInstrID;
-//	///执行价
-//	TThostFtdcPriceType	StrikePrice;
-//	///期权类型
-//	TThostFtdcOptionsTypeType	OptionsType;
-//	///合约系列
+    float price_tick;   ///< 最小变动价位
+    float volume_multiple; ///< 合约数量乘数
 }; 
 
 
@@ -213,17 +158,17 @@ struct Order {
     Order() { }
     //
     Order(const OrderID &_id, const Contract &c, TradeSide s, Direction d, 
-          Price p, Volume v, const DateTime &_datetime, HedgeType h, DealType deal)
+          Price p, Volume v, const DateTime &_datetime, HedgeType h, PriceType deal)
             :id(_id), contract(c), side(s), direction(d), price(p), volume(v),
-             datetime(_datetime), hedge_type(h), deal_type(deal) { }
+             datetime(_datetime), hedge_type(h), price_type(deal) { }
     bool operator < (const Order &other) const{ return id < other.id; }
     std::string toString() const;
 
     OrderID         id;                         ///< 订单编号，从１开始．
     Contract        contract;
-    TradeSide       side;
-    Direction       direction;
-    DealType        deal_type;
+    TradeSide       side;   ///< 开平仓标志
+    Direction       direction;  ///< 多空方向
+    PriceType        price_type;
     HedgeType       hedge_type;
     Price           price;
     DateTime        datetime;
@@ -231,9 +176,41 @@ struct Order {
     size_t          milliseconds;               ///< 毫秒延迟．
 };
 
+
 struct Transaction {
+    OrderID         id;                     // 可能要换一个数据结构。    
+    Contract        contract;
+    TradeSide       side;
+    Direction       direction;
+    PriceType       price_type;
+    HedgeType       hedge_type;
+    Price           price;
+    DateTime        datetime;
+    Volume          volume;
 };
 
+
+struct Position {
+    Contract contract;
+    Direction direction;
+    HedgeType hedge_type;
+    DateTime datetime;  ///< 持仓日期
+    Volume volume;  ///< 今日持仓
+    Volume yd_volume; ///< 上日持仓
+    float use_margin; ///< 占用的保证金
+    float margin_ratio; ///< 保证金率
+};
+
+
+struct Captial {
+    float equity;   ///< 权益
+    float available;    ///< 可用资金
+    float curr_margin;  ///< 保证金
+    float close_profit;     ///< 平仓盈亏
+    float position_profit;  ///< 持仓盈亏
+    float commission;   ///<  手续费
+    float frozen_margin; ///< 冻结保证金
+};
 
 /**
  * @brief tick数据, 统一封装了股票、期权、期货。

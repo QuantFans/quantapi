@@ -9,6 +9,23 @@
 using namespace QuantApi;
 using namespace std;
 
+/**
+* @brief 接口实例   
+*/
+class MyTrader : public CtpTrader{
+ public:
+    MyTrader(char *front):CtpTrader(front) { };
+    virtual ~MyTrader() { }
+
+    virtual void on_tick(const TickData &tick) { 
+        std::cout<<"*********************************"<<std::endl;    
+        std::cout<<tick.price<<std::endl;
+        std::cout<<"*********************************"<<std::endl;    
+    }
+ private:
+    /* data */
+};
+
 
 int main(int argc, const char *argv[])
 {
@@ -27,7 +44,7 @@ int main(int argc, const char *argv[])
 
     std::cout<<"*********************************"<<std::endl;    
     CtpQuoter *quoter = new CtpQuoter(quoter_front);
-    CtpTrader *trader = new CtpTrader(trader_front);
+    MyTrader *trader = new MyTrader(trader_front);
 //    LogonInfo info("8888", "001061", "001061");
     LogonInfo info("0081", "01095", "WANGDJ1985");
 
@@ -35,11 +52,10 @@ int main(int argc, const char *argv[])
     trader->login(info, false);
 
 
-    Order order(OrderID(1), Contract('s', "if1506"), kKai, kDuo,
+    Order order(OrderID(1), c, kKai, LONG,
                 0, 1, std::chrono::system_clock::now(), kSpeculation, kMarket);
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::cout<<"------------------------"<<std::endl; 
-    quoter->reqTick(clist, false);
+//    quoter->reqTick(clist, false);
     trader->reqTick(c, false);
 //    trader->order(order);
     std::this_thread::sleep_for(std::chrono::seconds(100));

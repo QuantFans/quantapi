@@ -1,4 +1,4 @@
-#include "../util/log_assert.h"" 
+#include "../util/log_assert.h"
 #include "mapping.h" 
 
 namespace QuantApi {
@@ -58,14 +58,14 @@ const char* tradesideMapping(TradeSide side) throw (Util::InvalidParamException)
 
 const char* directionMapping(Direction direc) throw (Util::InvalidParamException) {
     switch(direc) {
-        case kDuo: return "多头";
-        case kKong: return "空头";
+        case LONG: return "多头";
+        case SHORT: return "空头";
         default: throw Util::InvalidParamException("无效的编码: ", "%d", direc);
     }
     return "";
 }
 
-const char* dealTypeMapping(DealType deal_type) throw (Util::InvalidParamException) {
+const char* priceTypeMapping(PriceType deal_type) throw (Util::InvalidParamException) {
     switch(deal_type) {
         case kMarket: return "市价";
         case kMilliseconds: "限价";

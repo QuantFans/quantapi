@@ -29,92 +29,83 @@ public:
    ~CtpTrader();
 
 public:
-    virtual int login(const LogonInfo &info, bool syn=true);
-    virtual int logout(const LogonInfo &info,  bool syn);
-
-    /** @brief 请求查询合约 */
-	virtual int reqContract(Contract *c, bool syn=false);
-
-    /// 查询合约的最新报价
-	virtual int reqTick(const Contract &c, bool syn=false);
-
-	///请求查询资金账户
-	virtual int reqCaptial(bool syn=false);
-
-	///请求查询投资者持仓
-	virtual int reqPosition(const char *instId, bool syn=false);
-
 
     /**
      * @brief  下单请求
      *
-     * @param order 委托合约
-     * @param syn 是否同步调用
+     * @param info 登录信息
+     * @param sync 是否同步调用
      */
-    virtual int order(const Order &order, bool syn=false);
+    virtual int login(const LogonInfo &info, bool sync=true);
 
-	///撤单操作请求
-	virtual int cancel_order(int orderSeq, bool syn=false);
+    /** @brief 退出。 */
+    virtual int logout(const LogonInfo &info,  bool sync);
 
-    /**
-     * @brief tick数据到达回调函数。
-     *
-     * @param tick 
-     */
-    virtual void on_tick(const TickData &tick) const;
-//
-//    virtual void on_query() = 0;
-//    virtual void on_contract() = 0;
-//    virtual void on_captial() = 0;
+    /** @brief 请求查询合约 */
+	virtual int reqContract(Contract *c, bool sync=false);
 
-//    virtual void query() = 0;
+    /** @brief 查询合约的最新报价 */
+	virtual int reqTick(const Contract &c, bool sync=false);
 
-    virtual void on_cancel_order(Order order);
+    /** @brief 请求查询资金账户 */
+	virtual int reqCaptial(bool sync=false);
 
-    virtual void on_order(Transaction trans);
+    /** @brief 请求查询投资者持仓 */
+	virtual int reqPosition(const Contract &contract, bool sync=false);
 
+    /** @brief 下单，开仓或平仓。 */
+    virtual int order(const Order &order, bool sync=false);
+
+    /** @brief 撤单操作请求 */
+	virtual int cancel_order(int orderSeq, bool sync=false);
+
+ protected:
+
+    /** @brief tick数据到达回调函数。*/
+    virtual void on_tick(const TickData &tick) { }
+    
+    /** @brief 撤单回调 */
+    virtual void on_cancel_order(Order order) { }
+
+    /** @brief 报单到达交易所回调 */
+    virtual void on_order(const Order &order) { }
+
+    /** @brief 报单成交回调 */
+    virtual void on_transaction(const Transaction &tans) { }
+
+    /** @brief 合约查询回调 */
+    virtual void on_contract(const Contract &contract) { }
+
+    /** @brief 资金查询回调 */
+    virtual void on_captial(const Captial &cap) { }
+
+    /** @brief 持仓查询回调 */
+    virtual void on_position(const Position &pos) { }
+
+    //-------------------------------------------------------
+ private:
 
 	///投资者结算结果查询
     virtual void qrySettlementInfo(const char *broker_id, 
                                    const char *investor_id, 
                                    const char* trading_day,
-                                   bool syn=false);
+                                   bool sync=false);
 	///投资者结算结果确认
-	virtual void settlementInfoConfirm(bool syn=false);
-
+	virtual int settlementInfoConfirm(bool sync=false);
 
     /// 注册前置地址
-    virtual void registerFront(char *pszFrontAddress, bool syn=false);
+    virtual void registerFront(char *pszFrontAddress, bool sync=false);
 
     inline void synUnlock() { if(locked_) syn_flag_.unlock(); }
     inline void wait(bool towait) { if(towait) { syn_flag_.lock(); syn_flag_.unlock(); }}
 
-    //-------------------------------------------------------
- private:
+    inline void set_front_id(int id) { front_id_ = id; }
 
-    /// @todo onrspqry...
-    void ReqQrySettlementInfo(const char *broker_id, 
-                              const char *investor_id, 
-                              const char* trading_day);
+    inline void set_session_id(int id) { session_id_ = id; }
 
-	void ReqSettlementInfoConfirm();
+    inline int session_id() { return session_id_; }
 
-
-//------------------------------------------------------
-
-    inline void set_front_id(int id) { 
-        front_id_ = id;
-    }
-
-    inline void set_session_id(int id) { 
-        session_id_ = id;
-    }
-    inline int session_id() {
-        return session_id_;
-    }
-    inline int front_id(int id) {
-        return front_id_;
-    }
+    inline int front_id(int id) { return front_id_; }
 
 private:
 	///当客户端与交易后台建立起通信连接时（还未登录前），该方法被调用。
@@ -160,22 +151,18 @@ private:
 	/// 是否收到成功的响应
 	bool IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo);
 
-
- protected:
     inline void synLock() { syn_flag_.lock(); locked_ = true;}
     inline int nextRequestId() { return ++request_id_; }
-    void PrintOrders();
-    void PrintTrades();
 
- public:
+ private:
     int                     front_id_;	            ///< 前置编号
     int                     session_id_;	        ///< 会话编号
- private:
     TThostFtdcBrokerIDType  broker_id_;		        ///< 公司代码
     TThostFtdcUserIDType    user_id_;		        ///< 投资者代码
+
+    int                     request_id_;            ///< 会话编号
     int                     order_ref_;             ///< 订单编号
     CThostFtdcTraderApi     *api_;                  ///< 请求实例
-    int                     request_id_;            ///< 会话编号
     std::mutex              syn_flag_;              ///< 同步信号
     std::atomic<bool>       locked_;                 ///< 是否被锁住，用来决定解锁操作是否执行。
 

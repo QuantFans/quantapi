@@ -27,42 +27,40 @@ class Quoter{
         set_logined(false);
     }
     virtual ~Quoter(){ }
+
     /** @brief 帐号登录。 */
     virtual int login(const LogonInfo &info, bool sync=true) = 0;
+
     /** @brief 帐号退出。 */
     virtual int logout(const LogonInfo &info,  bool sync) = 0;
      
     /**
      * @brief 订阅tick数据。    
      *
-     * @param instruments 合约集合。
+     * @param contracts 合约集合。
      * @param sync 是否同步调用。
      *
      * @return 
      */
-    virtual int reqTick(const std::vector<Contract> &instruments, bool sync) = 0;
+    virtual int reqTick(const std::vector<Contract> &contracts, bool sync) = 0;
 
     /**
      * @brief 取消tick数据订阅。
      *
-     * @param instruments 合约结合。
+     * @param contracts 合约集合。
      * @param sync 是否同步调用。
      *
      * @return 
      */
-	virtual int unReqTick(const std::vector<Contract> &instruments, bool sync) = 0;
+	virtual int unReqTick(const std::vector<Contract> &contracts, bool sync) = 0;
 
-    /**
-     * @brief tick数据到达回调函数。
-     *
-     * @param tick 
-     */
-    virtual void on_tick(const TickData &tick) const = 0;
+    /** @brief tick数据到达回调函数。*/
+    virtual void on_tick(const TickData &tick) = 0;
+
     /**
      * @brief 当前日期
      *
      * @note 只有登录成功后,才能得到正确的交易日。
-     * @return 
      */
     virtual std::string getTradingDay() = 0;
 

@@ -16,13 +16,13 @@ Contract::getTradingTime(const Contract &contract) {
     char *morning_close_t = "11:30:00";
     char *afternoon_open_t = "13:30:00";
     char *afternoon_close_t = "15:00:00";
-    Util::ctpStrTime2Tm(morning_open_t, &tm1);
+    Util::strTime2Tm(morning_open_t, &tm1);
     rst.push_back(system_clock::from_time_t(mktime(&tm1)));
-    Util::ctpStrTime2Tm(morning_close_t, &tm1);
+    Util::strTime2Tm(morning_close_t, &tm1);
     rst.push_back(system_clock::from_time_t(mktime(&tm1)));
-    Util::ctpStrTime2Tm(afternoon_open_t, &tm1);
+    Util::strTime2Tm(afternoon_open_t, &tm1);
     rst.push_back(system_clock::from_time_t(mktime(&tm1)));
-    Util::ctpStrTime2Tm(afternoon_close_t, &tm1);
+    Util::strTime2Tm(afternoon_close_t, &tm1);
     rst.push_back(system_clock::from_time_t(mktime(&tm1)));
     return rst;
 }

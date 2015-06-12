@@ -16,8 +16,12 @@
 #include <cstdio>
 
 #include "CtpMapping.h" 
+#include "../../util/Functions.h" 
 
-tm g_today;   ///< 当日日期，在登入交易接口的时候被初始化。
+namespace Global {
+    tm g_today;   ///< 当日日期，在登入交易接口的时候被初始化。
+} /* Global */
+
 namespace QuantApi {
 using namespace std;
 
@@ -27,11 +31,8 @@ CtpQuoter::CtpQuoter(char *trade_front) {
     api_->RegisterSpi(this);
     locked_ = false;
     registerFront(trade_front, true);
-    std::cout<<"----<<std::endl;"<<std::endl;
     api_->Init(); // 回调在init之后才会运行！
-    std::cout<<"----<<std::endl;" <<std::endl;
     wait(true);      
-    std::cout<<"----<<std::endl;" <<std::endl;
 };
 
 CtpQuoter::~CtpQuoter(){ 
@@ -68,32 +69,28 @@ int CtpQuoter::logout(const LogonInfo &info, bool sync) {
     return ret;
 }
 
-int CtpQuoter::reqTick(const std::vector<Contract> &instruments, bool sync) {
-    char **instrumentsL  = new char*[instruments.size()];
-    for (int i = 0; i < instruments.size(); i++) {
-        instrumentsL[i] = const_cast<char*>(instruments[i].code.c_str());
+int CtpQuoter::reqTick(const std::vector<Contract> &contracts, bool sync) {
+    char **contractsL  = new char*[contracts.size()];
+    for (int i = 0; i < contracts.size(); i++) {
+        contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
     }
     if (sync) synLock();
-	int ret = api_->SubscribeMarketData(instrumentsL, instruments.size());
-    delete [] instrumentsL;
+	int ret = api_->SubscribeMarketData(contractsL, contracts.size());
+    delete [] contractsL;
     wait(sync);
     return ret;
 }
 
-int CtpQuoter::unReqTick(const std::vector<Contract> &instruments, bool sync) {
-    char **instrumentsL  = new char*[instruments.size()];
-    for (int i = 0; i < instruments.size(); i++) {
-        instrumentsL[i] = const_cast<char*>(instruments[i].code.c_str());
+int CtpQuoter::unReqTick(const std::vector<Contract> &contracts, bool sync) {
+    char **contractsL  = new char*[contracts.size()];
+    for (int i = 0; i < contracts.size(); i++) {
+        contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
     }
     if (sync) synLock();
-	int ret = api_->UnSubscribeMarketData(instrumentsL, instruments.size());
-    delete [] instrumentsL;
+	int ret = api_->UnSubscribeMarketData(contractsL, contracts.size());
+    delete [] contractsL;
     wait(sync);
     return ret;
-}
-
-void CtpQuoter::on_tick(const TickData &tick) const {
-
 }
 
 // --------------------------- call back -------------------------------------------------
@@ -116,12 +113,9 @@ void CtpQuoter::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
 //        set_logined(true);
         set_front_id(pRspUserLogin->FrontID);
         set_session_id(pRspUserLogin->SessionID);
-//        cerr<<" 响应 | 登录成功...当前交易日:"
-//            <<pRspUserLogin->TradingDay<<endl
-//            <<session_id()<<endl;
         cerr<<"OnRspUserLogin"<<std::endl;
         // 记录当期日期
-//        Util::ctpStrDate2Tm(pRspUserLogin->TradingDay, &g_today);
+        Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
     }
     if(bIsLast) synUnlock();
 }
@@ -142,7 +136,9 @@ void CtpQuoter::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout,
 void CtpQuoter::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument,
                                      CThostFtdcRspInfoField *pRspInfo,
                                      int nRequestID,bool bIsLast) {
-  if(bIsLast) synUnlock();
+
+    //取消订阅行情应答, 待实现
+    if(bIsLast) synUnlock();
 }
 
 void CtpQuoter::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, 
@@ -150,7 +146,7 @@ void CtpQuoter::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificI
                                    int nRequestID, 
                                    bool bIsLast) {
     if (!IsErrorRspInfo(pRspInfo)) {
-//        cerr<<"响应 | 最新数据！"<<endl;
+        // 数据订阅成功， 待实现。
         cerr<<"OnRspSubMarketData"<<endl;
     } else {
         cerr<<"************"<<endl;

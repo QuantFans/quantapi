@@ -5,7 +5,7 @@
 #include "definition.h"
 namespace Util {
 
-void ctpStrDate2Tm(const char* str, tm *t) {
+void strDate2Tm(const char* str, tm *t) {
     LOG_ASSERT(str && t);
     sscanf(str, "%4d" , &(t->tm_year));
     sscanf(str + 4 , "%2d" , &(t->tm_mon));
@@ -14,7 +14,7 @@ void ctpStrDate2Tm(const char* str, tm *t) {
     t->tm_mon -= 1;
 }
 
-void ctpStrTime2Tm(const char* str, tm *t) {
+void strTime2Tm(const char* str, tm *t) {
     LOG_ASSERT(str && t);
     sscanf(str, "%2d" , &(t->tm_hour));
     sscanf(str + 3, "%2d" , &(t->tm_min));

@@ -12,15 +12,15 @@ using namespace std;
     
 inline char toCtpDirection(Direction direct){
     switch(direct) {
-        case kDuo:
+        case LONG:
             return THOST_FTDC_D_Buy;
-        case kKong:
+        case SHORT:
             return THOST_FTDC_D_Sell;
         default:;
     }
 }
 
-inline char toCtpDealType(DealType deal){
+inline char toCtpPriceType(PriceType deal){
     switch(deal) {
         case kLimit:
             return THOST_FTDC_OPT_LimitPrice;
@@ -61,6 +61,26 @@ inline char toCtpTradeSide(TradeSide side) {
 
 }
 
+inline void toCtpContract(const CThostFtdcInstrumentField &cc, Contract *c) {
+//        cerr<<" 响应 | 合约:"<<pInstrument->InstrumentID
+//            <<" 交割月:"<<pInstrument->DeliveryMonth
+//            <<" 多头保证金率:"<<pInstrument->LongMarginRatio
+//            <<" 交易所代码:"<<pInstrument->ExchangeID
+//            <<" 空头保证金率:"<<pInstrument->ShortMarginRatio<<endl;    
+}
+
+inline void fromCtpCaptial(const CThostFtdcTradingAccountField &cc, Captial *c) {
+        cerr<<" 响应 | 权益:"<<cc.Balance
+            <<" 可用:"<<cc.Available   
+            <<" 保证金:"<<cc.CurrMargin
+            <<" 平仓盈亏:"<<cc.CloseProfit
+            <<" 持仓盈亏"<<cc.PositionProfit
+            <<" 手续费:"<<cc.Commission
+            <<" 冻结保证金:"<<cc.FrozenMargin
+            << endl;    
+}
+
+
 inline void fromCtpTransaction(const CThostFtdcTradeField &ctrans, Transaction *trans) {
 //  CThostFtdcTradeField* trade = new CThostFtdcTradeField();
 //  memcpy(trade,  pTrade, sizeof(CThostFtdcTradeField));
@@ -68,13 +88,29 @@ inline void fromCtpTransaction(const CThostFtdcTradeField &ctrans, Transaction *
   
 }
 
-
+// 被撤单回报调用。 
 inline void fromCtpOrder(const CThostFtdcInputOrderActionField &corder, Order *order) {
-    cerr<< " 响应 | 撤单成功..."
-      << "交易所:"<<corder.ExchangeID
-      <<" 报单编号:"<<corder.OrderSysID<<endl;
+//    cerr<< " 响应 | 撤单成功..."
+//      << "交易所:"<<corder.ExchangeID
+//      <<" 报单编号:"<<corder.OrderSysID<<endl;
 }
 
+// 被下单回报调用
+inline void fromCtpOrder(const CThostFtdcOrderField &corder, Order *order) {
+//    cerr<< " 响应 | 撤单成功..."
+//      << "交易所:"<<corder.ExchangeID
+//      <<" 报单编号:"<<corder.OrderSysID<<endl;
+}
+
+inline void fromCtpPosition(const CThostFtdcInvestorPositionField &cpos, Position *pos) {
+    cerr<<" 响应 | 合约:"<<cpos.InstrumentID
+//      <<" 方向:"<<MapDirection(pInvestorPosition->PosiDirection-2,false)
+      <<" 总持仓:"<<cpos.Position
+      <<" 昨仓:"<<cpos.YdPosition 
+      <<" 今仓:"<<cpos.TodayPosition
+      <<" 持仓盈亏:"<<cpos.PositionProfit
+      <<" 保证金:"<<cpos.UseMargin<<endl;
+}
 
 inline void fromCtpTick(const CThostFtdcDepthMarketDataField &ctick, TickData *tick) {
     cout<<"contract: "<<ctick.InstrumentID<<endl

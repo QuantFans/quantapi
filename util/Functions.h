@@ -92,7 +92,7 @@ class TimeSpan{
  * @param str 字符串日期(20140323)
  * @param t tm数据结构
  */
-void ctpStrDate2Tm(const char* str, tm *t);
+void strDate2Tm(const char* str, tm *t);
 
 /**
  * @brief 字符串时间转化为tm
@@ -100,7 +100,7 @@ void ctpStrDate2Tm(const char* str, tm *t);
  * @param str 字符串时间(14:02:31)
  * @param t tm数据结构
  */
-void ctpStrTime2Tm(const char* str, tm *t);
+void strTime2Tm(const char* str, tm *t);
 
 /**
  * @brief 字符串日期时间转化为time_point

@@ -19,7 +19,7 @@ const char* actionMapping(TradeSide act) throw (Util::InvalidParamException);
 
 const char* directionMapping(Direction direc) throw (Util::InvalidParamException);
 
-const char* dealTypeMapping(DealType deal_type) throw (Util::InvalidParamException);
+const char* priceTypeMapping(PriceType deal_type) throw (Util::InvalidParamException);
 
 } /* QuantApi */
 #endif /* end of include guard: _MAPPING_H */

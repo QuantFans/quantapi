@@ -23,8 +23,6 @@ using namespace std;
 vector<CThostFtdcOrderField*> orderList; // 已经提交的报单, 无论是否撤销
 vector<CThostFtdcTradeField*> tradeList; // 已经成交的报道
 
-char MapOffset(char src, bool toOrig);
-    
 CtpTrader::CtpTrader(char* trade_front) {
     LOG_ASSERT(trade_front);
     api_ = CThostFtdcTraderApi::CreateFtdcTraderApi();
@@ -40,136 +38,158 @@ CtpTrader::~CtpTrader() {
     api_->Release();
 }
 
-void CtpTrader::registerFront(char *pszFrontAddress, bool syn) {
-    if (syn) synLock();
+void CtpTrader::registerFront(char *pszFrontAddress, bool sync) {
+    if (sync) synLock();
     api_->RegisterFront(pszFrontAddress);
     cerr<<"registerFront..."<<endl;
 }
 
+void CtpTrader::qrySettlementInfo(const char *broker_id, 
+                                  const char *investor_id, 
+                                  const char* trading_day,
+                                  bool sync) {
+    if (sync) synLock();
+    std::cerr<<"settle"<<std::endl;
+    CThostFtdcQrySettlementInfoField pQrySettlementInfo;
+    memset(&pQrySettlementInfo, 0, sizeof(pQrySettlementInfo));
+    strcpy(pQrySettlementInfo.BrokerID, broker_id);
+    strcpy(pQrySettlementInfo.InvestorID, investor_id);
+    strcpy(pQrySettlementInfo.TradingDay, trading_day);
+    api_->ReqQrySettlementInfo(&pQrySettlementInfo, nextRequestId());
+    wait(sync);
+}
+
+int CtpTrader::settlementInfoConfirm(bool sync)
+{
+    if (sync) synLock();
+    CThostFtdcSettlementInfoConfirmField req;
+    memset(&req, 0, sizeof(req));
+    strcpy(req.BrokerID, broker_id_);
+    strcpy(req.InvestorID, user_id_);
+    int ret = api_->ReqSettlementInfoConfirm(&req, nextRequestId());
+    wait(sync);
+    cerr<<"Sending settlement info confirm.."<<((ret == 0)?"sucess":"failed")<<endl;
+    return ret;
+}
+
+
 int CtpTrader::login(const LogonInfo &info,
-                      bool syn) {
-    if (syn) synLock();
-	CThostFtdcReqUserLoginField req;
-	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, info.broker_id); 
-	strcpy(req.UserID, info.user_id); 
-	strcpy(req.Password, info.password);
+        bool sync) {
+    if (sync) synLock();
+    CThostFtdcReqUserLoginField req;
+    memset(&req, 0, sizeof(req));
+    strcpy(req.BrokerID, info.broker_id); 
+    strcpy(req.UserID, info.user_id); 
+    strcpy(req.Password, info.password);
     strcpy(broker_id_, info.broker_id); 
     strcpy(user_id_, info.user_id); 
-	int ret = api_->ReqUserLogin(&req, nextRequestId());
-    wait(syn);
+    int ret = api_->ReqUserLogin(&req, nextRequestId());
+    wait(sync);
     settlementInfoConfirm();
     cerr<<" sending | Logining..."<<((ret == 0) ? "Sucess" :"Failed") << endl;	
     return ret;
 }
 
-int CtpTrader::logout(const LogonInfo &info, bool syn) {
-    if (syn) synLock();
+int CtpTrader::logout(const LogonInfo &info, bool sync) {
+    if (sync) synLock();
     CThostFtdcUserLogoutField req;
-	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, info.broker_id); 
-	strcpy(req.UserID, info.user_id); 
-	int ret = api_->ReqUserLogout(&req, nextRequestId());
-    wait(syn);
-    cerr<<" sending | 窟僕曜竃..."<<((ret == 0) ? "撹孔" :"払移") << endl;	
+    memset(&req, 0, sizeof(req));
+    strcpy(req.BrokerID, info.broker_id); 
+    strcpy(req.UserID, info.user_id); 
+    int ret = api_->ReqUserLogout(&req, nextRequestId());
+    wait(sync);
+    cerr<<" sending | Logout..."<<((ret == 0) ? "Sucess" :"Failed") << endl;	
     return ret;
 }
 
-void CtpTrader::settlementInfoConfirm(bool syn)
-{
-    if (syn) synLock();
-    ReqSettlementInfoConfirm();
-    wait(syn);
-}
-
-int CtpTrader::order(const Order &order, bool syn) {
-    if (syn) synLock();
-	CThostFtdcInputOrderField req;
-	memset(&req, 0, sizeof(req));	
-	strcpy(req.BrokerID, broker_id_);  //应用单元代码	
-	strcpy(req.InvestorID, user_id_); //投资者代码	
-	strcpy(req.InstrumentID, order.contract.code.c_str()); //合约代码	
+int CtpTrader::order(const Order &order, bool sync) {
+    if (sync) synLock();
+    CThostFtdcInputOrderField req;
+    memset(&req, 0, sizeof(req));	
+    strcpy(req.BrokerID, broker_id_);  //应用单元代码	
+    strcpy(req.InvestorID, user_id_); //投资者代码	
+    strcpy(req.InstrumentID, order.contract.code.c_str()); //合约代码	
 
     sprintf(req.OrderRef, "%d", order.id.init_id);//报单引用
     req.Direction = Mapping::toCtpDirection(order.direction);  //买卖方向	
-	req.CombHedgeFlag[0] = Mapping::toCtpHedge(order.hedge_type);	  //组合投机套保标志	
-    req.OrderPriceType = Mapping::toCtpDealType(order.deal_type); //市价或限价
+    req.CombHedgeFlag[0] = Mapping::toCtpHedge(order.hedge_type);	  //组合投机套保标志	
+    req.OrderPriceType = Mapping::toCtpPriceType(order.price_type); //市价或限价
+    req.CombOffsetFlag[0] = Mapping::toCtpTradeSide(order.side); //组合开平标志
     req.LimitPrice = order.price;	//价格
-	req.VolumeTotalOriginal = order.volume;	///数量		
+    req.VolumeTotalOriginal = order.volume;	///数量		
 
-	req.CombOffsetFlag[0] = THOST_FTDC_OF_Open; //组合开平标志:开仓
-	req.VolumeCondition = THOST_FTDC_VC_AV; //成交量类型:任何数量
-	req.MinVolume = 1;	//最小成交量:1	
-	req.ContingentCondition = THOST_FTDC_CC_Immediately;  //触发条件:立即
-	req.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;	//强平原因:非强平	
-	req.IsAutoSuspend = 0;  //自动挂起标志:否	
-	req.UserForceClose = 0;   //用户强评标志:否
+    req.VolumeCondition = THOST_FTDC_VC_AV; //成交量类型:任何数量
+    req.MinVolume = 1;	//最小成交量:1	
+    req.ContingentCondition = THOST_FTDC_CC_Immediately;  //触发条件:立即
+    req.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;	//强平原因:非强平	
+    req.IsAutoSuspend = 0;  //自动挂起标志:否	
+    req.UserForceClose = 0;   //用户强评标志:否
     /// @todo 区分两者
     req.TimeCondition = THOST_FTDC_TC_GFD;  //有效期类型:当日有效
     //req.TimeCondition = THOST_FTDC_TC_IOC;//有效期类型:立即完成，否则撤销
 
-	int ret = api_->ReqOrderInsert(&req, nextRequestId());
-    wait(syn);
-    std::cout<<"----------------"<<std::endl;
-    std::cout<<req.OrderRef<<std::endl;
-    std::cout<<"----------------"<<std::endl;
+    int ret = api_->ReqOrderInsert(&req, nextRequestId());
+    wait(sync);
     return ret;
 }
 
-int CtpTrader::reqTick(const Contract &c, bool syn)
+int CtpTrader::reqTick(const Contract &c, bool sync)
 {
-    if (syn) synLock();
-	CThostFtdcQryDepthMarketDataField req;
-	memset(&req, 0, sizeof(req));
+    if (sync) synLock();
+    CThostFtdcQryDepthMarketDataField req;
+    memset(&req, 0, sizeof(req));
     strcpy(req.InstrumentID, c.code.c_str());//为空表示查询所有合约
-	int ret = api_->ReqQryDepthMarketData(&req, nextRequestId());
-    wait(syn);
-	cerr<<" 请求 | 发送合约报价查询..."<<((ret == 0)?"成功":"失败")<<endl;
+    int ret = api_->ReqQryDepthMarketData(&req, nextRequestId());
+    wait(sync);
+    cerr<<" 请求 | 发送合约报价查询..."<<((ret == 0)?"成功":"失败")<<endl;
     return ret;
 }
 
-int CtpTrader::reqContract(Contract *c, bool syn)
+int CtpTrader::reqContract(Contract *c, bool sync)
 {
-    if (syn) synLock();
-	CThostFtdcQryInstrumentField req;
-	memset(&req, 0, sizeof(req));
+    if (sync) synLock();
+    CThostFtdcQryInstrumentField req;
+    memset(&req, 0, sizeof(req));
     // 如果为空，表示查询所有合约
     strcpy(req.InstrumentID, c->code.c_str());
-	int ret = api_->ReqQryInstrument(&req, nextRequestId());
-    wait(syn);
+    int ret = api_->ReqQryInstrument(&req, nextRequestId());
+    /// @todo 多合约处理
+    //    Mapping::fromCtpContract(*req, c);
+    wait(sync);
     return ret;
 }
 
-int CtpTrader::reqCaptial(bool syn)
+int CtpTrader::reqCaptial(bool sync)
 {
-    if (syn) synLock();
-	CThostFtdcQryTradingAccountField req;
-	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, broker_id_);
-	strcpy(req.InvestorID, user_id_);
-	int ret = api_->ReqQryTradingAccount(&req, nextRequestId());
-    wait(syn);
-	cerr<<" 请求 | 发送资金查询..."<<((ret == 0)?"成功":"失败")<<endl;
+    if (sync) synLock();
+    CThostFtdcQryTradingAccountField req;
+    memset(&req, 0, sizeof(req));
+    strcpy(req.BrokerID, broker_id_);
+    strcpy(req.InvestorID, user_id_);
+    int ret = api_->ReqQryTradingAccount(&req, nextRequestId());
+    wait(sync);
+    cerr<<" 请求 | 发送资金查询..."<<((ret == 0)?"成功":"失败")<<endl;
     return ret;
 }
 
-int CtpTrader::reqPosition(const char *instId, bool syn)
+int CtpTrader::reqPosition(const Contract &contract, bool sync)
 {
-    if (syn) synLock();
-	CThostFtdcQryInvestorPositionField req;
-	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, broker_id_);
-	strcpy(req.InvestorID, user_id_);
-	strcpy(req.InstrumentID, instId);	
-	int ret = api_->ReqQryInvestorPosition(&req, nextRequestId());
-    wait(syn);
-	cerr<<" 请求 | 发送持仓查询..."<<((ret == 0)?"成功":"失败")<<endl;
+
+    if (sync) synLock();
+    CThostFtdcQryInvestorPositionField req;
+    memset(&req, 0, sizeof(req));
+    strcpy(req.BrokerID, broker_id_);
+    strcpy(req.InvestorID, user_id_);
+    strcpy(req.InstrumentID, contract.code.c_str());	
+    int ret = api_->ReqQryInvestorPosition(&req, nextRequestId());
+    wait(sync);
+    cerr<<" 请求 | 发送持仓查询..."<<((ret == 0)?"成功":"失败")<<endl;
     return ret;
 }
 
-int CtpTrader::cancel_order(int orderSeq, bool syn)
+int CtpTrader::cancel_order(int orderSeq, bool sync)
 {
-    if (syn) synLock();
+    if (sync) synLock();
 
     bool found=false;
     unsigned int i=0;
@@ -193,147 +213,79 @@ int CtpTrader::cancel_order(int orderSeq, bool syn)
     req.ActionFlag = THOST_FTDC_AF_Delete;  //操作标志 
 
     int ret = api_->ReqOrderAction(&req, nextRequestId());
-    wait(syn);
+    wait(sync);
     cerr<< " 请求 | 发送撤单..." <<((ret == 0)?"成功":"失败") << endl;
     return ret;
 
 }
 
+//void CtpTrader::PrintOrders(){
+//    CThostFtdcOrderField* pOrder; 
+//    for(unsigned int i=0; i<orderList.size(); i++){
+//        pOrder = orderList[i];
+//        cerr<<" 报单 | 合约:"<<pOrder->InstrumentID
+//            //        <<" 方向:"<<MapDirection(pOrder->Direction,false)
+//            <<" 价格:"<<pOrder->LimitPrice
+//            <<" 数量:"<<pOrder->VolumeTotalOriginal
+//            <<" 序号:"<<pOrder->BrokerOrderSeq 
+//            <<" 报单编号:"<<pOrder->OrderSysID
+//            <<" 状态:"<<pOrder->StatusMsg<<endl;
+//    }
+//    //  sem.sem_v();
+//}
+//void CtpTrader::PrintTrades(){
+//    CThostFtdcTradeField* pTrade;
+//    for(unsigned int i=0; i<tradeList.size(); i++){
+//        pTrade = tradeList[i];
+//        cerr<<" 成交 | 合约:"<< pTrade->InstrumentID 
+//            //        <<" 方向:"<<MapDirection(pTrade->Direction,false)
+//            <<" 价格:"<<pTrade->Price
+//            <<" 数量:"<<pTrade->Volume
+//            <<" 报单编号:"<<pTrade->OrderSysID
+//            <<" 成交编号:"<<pTrade->TradeID<<endl;
+//    }
+//    //  sem.sem_v();
+//}
 
-void CtpTrader::on_tick(const TickData &tick) const {
-
-}
-//
-//    virtual void on_query() = 0;
-//    virtual void on_contract() = 0;
-//    virtual void on_captial() = 0;
-
-//    virtual void query() = 0;
-
-void CtpTrader::on_cancel_order(Order order) {
-
-}
-
-void CtpTrader::on_order(Transaction trans) {
-
-}
-
-void CtpTrader::qrySettlementInfo(const char *broker_id, 
-                                  const char *investor_id, 
-                                  const char* trading_day,
-                                  bool syn) {
-    if (syn) synLock();
-    ReqQrySettlementInfo(broker_id, investor_id, trading_day);
-    wait(syn);
-}
-
-// ---------------------------------------------------------------------------------------
-
-void CtpTrader::ReqSettlementInfoConfirm()
-{
-	CThostFtdcSettlementInfoConfirmField req;
-	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, broker_id_);
-	strcpy(req.InvestorID, user_id_);
-	int ret = api_->ReqSettlementInfoConfirm(&req, nextRequestId());
-	cerr<<" 请求 | 发送结算单确认..."<<((ret == 0)?"成功":"失败")<<endl;
-}
-
-void CtpTrader::PrintOrders(){
-  CThostFtdcOrderField* pOrder; 
-  for(unsigned int i=0; i<orderList.size(); i++){
-    pOrder = orderList[i];
-    cerr<<" 报单 | 合约:"<<pOrder->InstrumentID
-//        <<" 方向:"<<MapDirection(pOrder->Direction,false)
-        <<" 开平:"<<MapOffset(pOrder->CombOffsetFlag[0],false)
-        <<" 价格:"<<pOrder->LimitPrice
-        <<" 数量:"<<pOrder->VolumeTotalOriginal
-        <<" 序号:"<<pOrder->BrokerOrderSeq 
-        <<" 报单编号:"<<pOrder->OrderSysID
-        <<" 状态:"<<pOrder->StatusMsg<<endl;
-  }
-//  sem.sem_v();
-}
-void CtpTrader::PrintTrades(){
-  CThostFtdcTradeField* pTrade;
-  for(unsigned int i=0; i<tradeList.size(); i++){
-    pTrade = tradeList[i];
-    cerr<<" 成交 | 合约:"<< pTrade->InstrumentID 
-//        <<" 方向:"<<MapDirection(pTrade->Direction,false)
-        <<" 开平:"<<MapOffset(pTrade->OffsetFlag,false) 
-        <<" 价格:"<<pTrade->Price
-        <<" 数量:"<<pTrade->Volume
-        <<" 报单编号:"<<pTrade->OrderSysID
-        <<" 成交编号:"<<pTrade->TradeID<<endl;
-  }
-//  sem.sem_v();
-}
-
-void CtpTrader::ReqQrySettlementInfo(const char *broker_id, 
-                                     const char *investor_id, 
-                                     const char* trading_day) {
-    std::cerr<<"settle"<<std::endl;
-    CThostFtdcQrySettlementInfoField pQrySettlementInfo;
-	memset(&pQrySettlementInfo, 0, sizeof(pQrySettlementInfo));
-    strcpy(pQrySettlementInfo.BrokerID, broker_id);
-    strcpy(pQrySettlementInfo.InvestorID, investor_id);
-    strcpy(pQrySettlementInfo.TradingDay, trading_day);
-    api_->ReqQrySettlementInfo(&pQrySettlementInfo, nextRequestId());
-}
-
-char MapOffset(char src, bool toOrig=true){
-  if(toOrig){
-    if('o'==src||'O'==src){src='0';}
-    else if('c'==src||'C'==src){src='1';}       ///< 平昨 
-    else if('j'==src||'J'==src){src='3';}       ///< 平今
-  }else{
-    if('0'==src){src='O';}
-    else if('1'==src){src='C';}
-    else if('3'==src){src='J';}
-  }
-  return src;
-}
-// ---------------------------------------------------------------
+// ---------------------- 回调函数 -----------------------------------
 void CtpTrader::OnFrontConnected() {
-	cout<<" trader front connectd..."<<endl;
+    cout<<" trader front connectd..."<<endl;
     synUnlock();
 }
 
 void CtpTrader::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
-		CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
-	if ( !IsErrorRspInfo(pRspInfo) && pRspUserLogin ) {  
-    // 保存会话参数	
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
+    if ( !IsErrorRspInfo(pRspInfo) && pRspUserLogin ) {  
+        // 保存会话参数	
         set_logined(true);
-		set_front_id(pRspUserLogin->FrontID);
-		set_session_id(pRspUserLogin->SessionID);
-       cerr<<" 响应 | 用户登录成功...当前交易日:"
-       <<pRspUserLogin->TradingDay<<endl;     
-  }
-  if(bIsLast) synUnlock();
+        set_front_id(pRspUserLogin->FrontID);
+        set_session_id(pRspUserLogin->SessionID);
+        cerr<<" 响应 | 用户登录成功...当前交易日:"
+            <<pRspUserLogin->TradingDay<<endl;     
+    }
+    if(bIsLast) synUnlock();
 }
 
 void CtpTrader::OnRspSettlementInfoConfirm(
         CThostFtdcSettlementInfoConfirmField  *pSettlementInfoConfirm, 
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {	
-	if( !IsErrorRspInfo(pRspInfo) && pSettlementInfoConfirm){
+    if( !IsErrorRspInfo(pRspInfo) && pSettlementInfoConfirm){
         cerr<<" 响应 | 结算单..."<<pSettlementInfoConfirm->InvestorID
             <<"...<"<<pSettlementInfoConfirm->ConfirmDate
             <<" "<<pSettlementInfoConfirm->ConfirmTime<<">...确认"<<endl;
-//       char a[5] = "0";
-//    ReqOrderInsert("ru1405", 's', a, 0, 1);
-  }
+        //       char a[5] = "0";
+        //    ReqOrderInsert("ru1405", 's', a, 0, 1);
+    }
     if(bIsLast) synUnlock();
 }
 
 void CtpTrader::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, 
-         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 { 	
     if ( !IsErrorRspInfo(pRspInfo) &&  pInstrument){
-        cerr<<" 响应 | 合约:"<<pInstrument->InstrumentID
-            <<" 交割月:"<<pInstrument->DeliveryMonth
-            <<" 多头保证金率:"<<pInstrument->LongMarginRatio
-            <<" 交易所代码:"<<pInstrument->ExchangeID
-            <<" 空头保证金率:"<<pInstrument->ShortMarginRatio<<endl;    
+        Contract c;
+        Mapping::toCtpContract(*pInstrument, &c);
+        on_contract(c);
     }
     if(bIsLast) synUnlock();
 }
@@ -350,116 +302,114 @@ void CtpTrader::OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMa
 }
 
 void CtpTrader::OnRspQryTradingAccount(
-    CThostFtdcTradingAccountField *pTradingAccount, 
-   CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+        CThostFtdcTradingAccountField *pTradingAccount, 
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 { 
     if (!IsErrorRspInfo(pRspInfo) &&  pTradingAccount){
-        cerr<<" 响应 | 权益:"<<pTradingAccount->Balance
-            <<" 可用:"<<pTradingAccount->Available   
-            <<" 保证金:"<<pTradingAccount->CurrMargin
-            <<" 平仓盈亏:"<<pTradingAccount->CloseProfit
-            <<" 持仓盈亏"<<pTradingAccount->PositionProfit
-            <<" 手续费:"<<pTradingAccount->Commission
-            <<" 冻结保证金:"<<pTradingAccount->FrozenMargin
-            << endl;    
+        Captial cap;
+        Mapping::fromCtpCaptial(*pTradingAccount, &cap);
+        on_captial(cap);
     }
-  if(bIsLast) synUnlock();
+    if(bIsLast) synUnlock();
 }
 
 void CtpTrader::OnRspQryInvestorPosition(
-    CThostFtdcInvestorPositionField *pInvestorPosition, 
-    CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+        CThostFtdcInvestorPositionField *pInvestorPosition, 
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 { 
-  if( !IsErrorRspInfo(pRspInfo) &&  pInvestorPosition ){
-    cerr<<" 响应 | 合约:"<<pInvestorPosition->InstrumentID
-//      <<" 方向:"<<MapDirection(pInvestorPosition->PosiDirection-2,false)
-      <<" 总持仓:"<<pInvestorPosition->Position
-      <<" 昨仓:"<<pInvestorPosition->YdPosition 
-      <<" 今仓:"<<pInvestorPosition->TodayPosition
-      <<" 持仓盈亏:"<<pInvestorPosition->PositionProfit
-      <<" 保证金:"<<pInvestorPosition->UseMargin<<endl;
-  }
-  if(bIsLast) synUnlock();
+    if( !IsErrorRspInfo(pRspInfo) &&  pInvestorPosition ){
+        Position pos;
+        Mapping::fromCtpPosition(*pInvestorPosition, &pos);
+        on_position(pos);
+    }
+    if(bIsLast) synUnlock();
 }
 
 void CtpTrader::OnRspOrderAction(
-      CThostFtdcInputOrderActionField *pInputOrderAction, 
-      CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+        CThostFtdcInputOrderActionField *pInputOrderAction, 
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {	
-  if (!IsErrorRspInfo(pRspInfo) && pInputOrderAction){
-    Order order;
-    Mapping::fromCtpOrder(*pInputOrderAction, &order);
-    // 
-    on_cancel_order(order);
-  }
+    if (!IsErrorRspInfo(pRspInfo) && pInputOrderAction){
+        Order order;
+        Mapping::fromCtpOrder(*pInputOrderAction, &order);
+        // 撤单响应
+        on_cancel_order(order);
+    }
 
-  if(bIsLast) synUnlock();
+    if(bIsLast) synUnlock();
 }
 
 void CtpTrader::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, 
-          CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-  if( !IsErrorRspInfo(pRspInfo) && pInputOrder ){
-       cerr<<"响应 | 报单提交成功...报单引用:"<<pInputOrder->OrderRef<<endl;  
-       cerr<<"ccc...."<<std::endl;
-  }
-  //if(bIsLast) synUnlock();
+    if( !IsErrorRspInfo(pRspInfo) && pInputOrder ){
+        cerr<<"Response | order insert sucess, reference::"<<pInputOrder->OrderRef<<endl;  
+    }
+    //if(bIsLast) synUnlock();
 }
 
 ///报单回报
 void CtpTrader::OnRtnOrder(CThostFtdcOrderField *pOrder)
 {	
-  CThostFtdcOrderField* order = new CThostFtdcOrderField();
-  memcpy(order,  pOrder, sizeof(CThostFtdcOrderField));
-  bool founded=false;    unsigned int i=0;
-//  for(i=0; i<orderList.size(); i++){
-//    if(orderList[i]->BrokerOrderSeq == order->BrokerOrderSeq) {
-//      founded=true;    break;
-//    }
-//  }
-//  if(founded) 
-//      orderList[i]= order;   
-//  else 
-//      orderList.push_back(order);
-  cerr<<" 回报 | 报单已提交...序号:"<<order->BrokerOrderSeq<<endl;
+//    CThostFtdcOrderField* order = new CThostFtdcOrderField();
+//    memcpy(order,  pOrder, sizeof(CThostFtdcOrderField));
+//    bool founded=false;    unsigned int i=0;
+    //  for(i=0; i<orderList.size(); i++){
+    //    if(orderList[i]->BrokerOrderSeq == order->BrokerOrderSeq) {
+    //      founded=true;    break;
+    //    }
+    //  }
+    //  if(founded) 
+    //      orderList[i]= order;   
+    //  else 
+    //      orderList.push_back(order);
+
+    Order order;
+    Mapping::fromCtpOrder(*pOrder, &order);
+    //
+    on_order(order);
+    cerr<<" Response | order arrive exchange,  order id:"<<pOrder->BrokerOrderSeq<<endl;
 }
 
 ///成交通知
 void CtpTrader::OnRtnTrade(CThostFtdcTradeField *pTrade)
 {
-  Transaction trans;
-  Mapping::fromCtpTransaction(*pTrade, &trans);
-  //
-  on_order(trans);
-  synUnlock();
+    Transaction trans;
+    Mapping::fromCtpTransaction(*pTrade, &trans);
+    //
+    on_transaction(trans);
+    cerr<<" Response | deal,  order id:"<<pTrade->OrderSysID<<endl;  // 成交后才有的字段？
+    synUnlock();
 }
 
 void CtpTrader::OnFrontDisconnected(int nReason)
 {
-	cerr<<" 响应 | 连接中断..." 
-	  << " reason=" << nReason << endl;
+    // 系统会自动重连。
+    cerr<<" 响应 | 连接中断..." 
+        << " reason=" << nReason << endl;
 }
-		
+
 void CtpTrader::OnHeartBeatWarning(int nTimeLapse)
 {
-	cerr<<" 响应 | 心跳超时警告..." 
-	  << " TimerLapse = " << nTimeLapse << endl;
+    // 长时间没收到报文，会被调用。
+    cerr<<" 响应 | 心跳超时警告..." 
+        << " TimerLapse = " << nTimeLapse << endl;
 }
 
 void CtpTrader::OnRspError(CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
-	IsErrorRspInfo(pRspInfo);
+    IsErrorRspInfo(pRspInfo);
     if(bIsLast) synUnlock();
 }
 
 bool CtpTrader::IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo)
 {
-	// 如果ErrorID != 0, 说明收到了错误的响应
-	bool ret = ((pRspInfo) && (pRspInfo->ErrorID != 0));
-  if (ret){
-    cerr<<" Error: | "<<pRspInfo->ErrorMsg<<endl;
-  }
-	return ret;
+    // 如果ErrorID != 0, 说明收到了错误的响应
+    bool ret = ((pRspInfo) && (pRspInfo->ErrorID != 0));
+    if (ret){
+        cerr<<" Error: | "<<pRspInfo->ErrorMsg<<endl;
+    }
+    return ret;
 }
 
 } /* QuantApi */
