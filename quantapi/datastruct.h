@@ -68,7 +68,16 @@ enum TradeSide {
    kCoverToday, ///< 空头平今
    kSellToday, ///< 多头平今
    kKai, ///< 开仓
-   kPing ///< 平仓
+   kPing, ///< 平仓
+   kPingToday //平今
+};
+
+/**
+* @brief 投资者持仓日期类型
+*/
+enum PositionDate {
+	psdToday,	//今日持仓
+	psdHistory  //历史持仓
 };
 
 struct LogonInfo {
@@ -107,6 +116,10 @@ struct Contract {
             return true;
         else return false;
     }
+
+	bool operator == (const Contract &other) const {
+		return code == other.code && other.exch_type == exch_type;
+	}
 
      /** @brief 获取合约的交易时间 */
     static std::vector<DateTime> getTradingTime(const Contract &contract);
@@ -194,7 +207,7 @@ struct Position {
     Contract contract;
     Direction direction;
     HedgeType hedge_type;
-    DateTime datetime;  ///< 持仓日期
+	PositionDate positionDate;  ///< 持仓日期
     Volume volume;  ///< 今日持仓
     Volume yd_volume; ///< 上日持仓
     float use_margin; ///< 占用的保证金

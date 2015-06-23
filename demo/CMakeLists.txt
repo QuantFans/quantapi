@@ -10,6 +10,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 TARGET_LINK_LIBRARIES (ctp_demo
 	${CTP_MD_LIB}
 	${CTP_TRADER_LIB}
+	${LTS_MD_LIB}
+	${LTS_TRADER_LIB}
     util
     quantapi
     )

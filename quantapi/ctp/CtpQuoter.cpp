@@ -55,6 +55,7 @@ int CtpQuoter::login(const LogonInfo &info, bool sync) {
 	int ret = api_->ReqUserLogin(&req, nextRequestId());
     cerr<<"try login..."<<((ret == 0) ? "sucessed" :"failed") << endl;	
     wait(sync);
+	return ret;
 }
 
 int CtpQuoter::logout(const LogonInfo &info, bool sync) {

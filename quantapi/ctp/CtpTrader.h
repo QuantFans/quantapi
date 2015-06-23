@@ -10,6 +10,7 @@
 #define CTPTRADER_H
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 #include "../Trader.h" 
 #include "ThostFtdcUserApiDataType.h" 
 #include "ThostFtdcTraderApi.h" 
@@ -96,8 +97,25 @@ public:
     /// 注册前置地址
     virtual void registerFront(char *pszFrontAddress, bool sync=false);
 
-    inline void synUnlock() { if(locked_) syn_flag_.unlock(); }
-    inline void wait(bool towait) { if(towait) { syn_flag_.lock(); syn_flag_.unlock(); }}
+//	inline void synUnlock() { if (locked_) locked_ = false; syn_flag_.unlock(); }
+
+	inline void notify() {
+		std::unique_lock <std::mutex> lock(syn_flag_);
+		locked_ = false;
+		m_cond.notify_all();
+	}
+
+    inline void wait(bool towait) 
+	{ 
+		if(towait) 
+		{ 
+//			syn_flag_.lock(); 
+//			syn_flag_.unlock();
+			std::unique_lock<std::mutex> lock(syn_flag_);
+			locked_ = true;
+			m_cond.wait(lock);
+		}
+	}
 
     inline void set_front_id(int id) { front_id_ = id; }
 
@@ -151,7 +169,8 @@ private:
 	/// 是否收到成功的响应
 	bool IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo);
 
-    inline void synLock() { syn_flag_.lock(); locked_ = true;}
+//   inline void synLock() { syn_flag_.try_lock(); locked_ = true;}
+
     inline int nextRequestId() { return ++request_id_; }
 
  private:
@@ -163,9 +182,10 @@ private:
     int                     request_id_;            ///< 会话编号
     int                     order_ref_;             ///< 订单编号
     CThostFtdcTraderApi     *api_;                  ///< 请求实例
-    std::mutex              syn_flag_;              ///< 同步信号
-    std::atomic<bool>       locked_;                 ///< 是否被锁住，用来决定解锁操作是否执行。
 
+    std::mutex              syn_flag_;              ///< 同步
+    std::atomic<bool>       locked_;                ///< 是否被锁住，用来决定解锁操作是否执行。
+	std::condition_variable m_cond;					//条件变量
 };
 
 } /* QuantDigger */

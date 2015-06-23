@@ -38,26 +38,39 @@ int main(int argc, const char *argv[])
     char quoter_front[]="tcp://180.168.146.181:10100";
 
     Contract c;
-    c.code = "jd1604" ;
+    c.code = "ru1509" ;
     vector<Contract> clist;
     clist.push_back(c);
 
     std::cout<<"*********************************"<<std::endl;    
-    CtpQuoter *quoter = new CtpQuoter(quoter_front);
+
+	//    CtpQuoter *quoter = new CtpQuoter(quoter_front);
     MyTrader *trader = new MyTrader(trader_front);
-//    LogonInfo info("8888", "001061", "001061");
+
+	//    LogonInfo info("8888", "001061", "001061");
     LogonInfo info("0081", "01095", "WANGDJ1985");
 
-    quoter->login(info, false);
-    trader->login(info, false);
+
+	//    quoter->login(info, true);
+    trader->login(info, true);
 
 
     Order order(OrderID(1), c, kKai, LONG,
                 0, 1, std::chrono::system_clock::now(), kSpeculation, kMarket);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-//    quoter->reqTick(clist, false);
-    trader->reqTick(c, false);
-//    trader->order(order);
-    std::this_thread::sleep_for(std::chrono::seconds(100));
+
+	    
+
+	//    quoter->reqTick(clist, false);
+
+	//	  trader->reqContract(&c, true);
+
+	std::this_thread::sleep_for(std::chrono::seconds(2));
+
+	trader->order(order, true);
+
+	trader->reqTick(c, true);
+
+    std::this_thread::sleep_for(std::chrono::seconds(60));
+	trader->logout(info,true);
     return 0;
 }

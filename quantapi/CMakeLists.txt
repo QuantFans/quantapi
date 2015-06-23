@@ -2,6 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
 
 FILE(GLOB source
     "./ctp/*.cpp"
+	"./lts/*.cpp"
     "*.cpp" 
 )
 
@@ -12,6 +13,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 TARGET_LINK_LIBRARIES (quantapi
 	${CTP_MD_LIB}
 	${CTP_TRADER_LIB}
+	${LTS_MD_LIB}
+	${LTS_TRADER_LIB}
     util
     )
 

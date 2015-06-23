@@ -2,11 +2,11 @@
 
 #define CTPMAPPING_H
 #include <quantapi/datastruct.h>
+#include <quantapi/mapping.h>
 #include "ThostFtdcUserApiDataType.h" 
 #include <iostream>
 
-namespace QuantApi {
-    
+namespace QuantApi {    
 namespace Mapping {
 using namespace std;
     
@@ -20,6 +20,18 @@ inline char toCtpDirection(Direction direct){
     }
 }
 
+inline Direction fromCtpDirection(const char direct)
+{
+	switch (direct)
+	{
+	case THOST_FTDC_D_Buy:
+		return LONG;
+	case THOST_FTDC_D_Sell:
+		return SHORT;
+	default:;
+	}
+}
+
 inline char toCtpPriceType(PriceType deal){
     switch(deal) {
         case kLimit:
@@ -28,6 +40,18 @@ inline char toCtpPriceType(PriceType deal){
             return THOST_FTDC_OPT_AnyPrice;
         default:;
     }
+}
+
+inline PriceType fromCtpPriceType(const char priceType)
+{
+	switch (priceType)
+	{
+	case THOST_FTDC_OPT_LimitPrice:
+		return kLimit;
+	case THOST_FTDC_OPT_AnyPrice:
+		return kMarket;
+	default:;
+	}
 }
 
 
@@ -43,6 +67,20 @@ inline char toCtpHedge(HedgeType hedge){
     }
 }
 
+inline HedgeType fromCtpHedge(const char hedge)
+{
+	switch (hedge)
+	{
+	case THOST_FTDC_HF_Speculation:
+		return kSpeculation;
+	case THOST_FTDC_HF_Arbitrage:
+		return kArbitrage;
+	case THOST_FTDC_HF_Hedge:
+		return kHedge;
+	default:;
+	}
+}
+
 inline char toCtpTradeSide(TradeSide side) {
     switch(side) {
         case kBuy:
@@ -55,155 +93,147 @@ inline char toCtpTradeSide(TradeSide side) {
             return THOST_FTDC_OF_Close;
         case kCoverToday:
         case kSellToday:
+		case kPingToday:
             return THOST_FTDC_OF_CloseToday;
         default:;
     }
 
 }
 
+inline TradeSide fromCtpTradeSide(const char side)
+{
+	switch (side)
+	{
+	case THOST_FTDC_OF_Open:
+		return kKai;
+	case THOST_FTDC_OF_Close:
+		return kPing;
+	case THOST_FTDC_OF_CloseToday:
+		return kPingToday;
+	default:;
+	}
+}
+
+inline char toCtpPositionDate(PositionDate posDate)
+{
+	switch (posDate)
+	{
+	case psdToday:
+		return THOST_FTDC_PSD_Today;
+	case psdHistory:
+		return THOST_FTDC_PSD_History;
+	default:;
+	}
+}
+
+inline PositionDate fromCtpPositionDate(const char posDate)
+{
+	switch (posDate)
+	{
+	case THOST_FTDC_PSD_Today:
+		return psdToday;
+	case THOST_FTDC_PSD_History:
+		return psdHistory;
+	default:;
+	}
+}
+
 inline void toCtpContract(const CThostFtdcInstrumentField &cc, Contract *c) {
-//        cerr<<" 响应 | 合约:"<<pInstrument->InstrumentID
-//            <<" 交割月:"<<pInstrument->DeliveryMonth
-//            <<" 多头保证金率:"<<pInstrument->LongMarginRatio
-//            <<" 交易所代码:"<<pInstrument->ExchangeID
-//            <<" 空头保证金率:"<<pInstrument->ShortMarginRatio<<endl;    
+	c->code = cc.InstrumentID;
+	c->exch_type = map2QDExchType(cc.ExchangeID);
+	c->long_margin_ratio = cc.LongMarginRatio;
+	c->price_tick = cc.PriceTick;
+	c->short_margin_ratio = cc.ShortMarginRatio;
+	c->volume_multiple = cc.VolumeMultiple;
 }
 
 inline void fromCtpCaptial(const CThostFtdcTradingAccountField &cc, Captial *c) {
-        cerr<<" 响应 | 权益:"<<cc.Balance
-            <<" 可用:"<<cc.Available   
-            <<" 保证金:"<<cc.CurrMargin
-            <<" 平仓盈亏:"<<cc.CloseProfit
-            <<" 持仓盈亏"<<cc.PositionProfit
-            <<" 手续费:"<<cc.Commission
-            <<" 冻结保证金:"<<cc.FrozenMargin
-            << endl;    
+	c->available = cc.Available;
+	c->close_profit = cc.CloseProfit;
+	c->commission = cc.Commission;
+	c->curr_margin = cc.CurrMargin;
+	c->equity = cc.Balance;
+	c->frozen_margin = cc.FrozenMargin;
+	c->position_profit = cc.PositionProfit;   
 }
 
 
 inline void fromCtpTransaction(const CThostFtdcTradeField &ctrans, Transaction *trans) {
-//  CThostFtdcTradeField* trade = new CThostFtdcTradeField();
-//  memcpy(trade,  pTrade, sizeof(CThostFtdcTradeField));
-//  cerr<<" 回报 | 报单已成交...成交编号:"<<trade->TradeID<<endl;
-  
+	trans->contract.code = ctrans.InstrumentID;
+	trans->contract.exch_type = map2QDExchType(ctrans.ExchangeID);
+	char dt[19] = { 0 };
+	strcpy(dt, ctrans.TradeDate);
+	strcat(dt, ctrans.TradeTime);
+	trans->datetime = Util::strDateTime2TimePoint(dt);
+	trans->direction = fromCtpDirection(ctrans.Direction);
+	trans->hedge_type = fromCtpHedge(ctrans.HedgeFlag);
+	trans->id.init_id = atoi(ctrans.OrderRef);
+	trans->id.order_id = atoi(ctrans.OrderSysID);
+	trans->price = ctrans.Price;
+//	Í¨¹ýÉÏ²ãon_transaction Í¨¹ý²éÑ¯ÒÑÏÂµ¥µÄOrderÖÐµÄorderIdºÍcontrantÓëÕâ¸öÎÇºÏµÄ¶©µ¥À´¸³Öµ
+//	trans->price_type = fromCtpPriceType 
+	trans->side = fromCtpTradeSide(ctrans.OffsetFlag);
+	trans->volume = ctrans.Volume;
 }
 
 // 被撤单回报调用。 
 inline void fromCtpOrder(const CThostFtdcInputOrderActionField &corder, Order *order) {
-//    cerr<< " 响应 | 撤单成功..."
-//      << "交易所:"<<corder.ExchangeID
-//      <<" 报单编号:"<<corder.OrderSysID<<endl;
+	order->id.init_id = atoi(corder.OrderRef);
+	order->id.order_id = atoi(corder.OrderSysID);
+	order->contract.code = corder.InstrumentID;
+	order->contract.exch_type = map2QDExchType(corder.ExchangeID);
+	
+	order->datetime = std::chrono::system_clock::now();
+
+//	Í¨¹ýÉÏ²ãon_transaction Í¨¹ý²éÑ¯ÒÑÏÂµ¥µÄOrderÖÐµÄorderIdºÍcontrantÓëÕâ¸öÎÇºÏµÄ¶©µ¥À´¸³Öµ
+//	order->direction =  
+//	order->hedge_type = 
+//	order->price_type =
+//	order->side =
+	order->price = corder.LimitPrice;
 }
 
 // 被下单回报调用
 inline void fromCtpOrder(const CThostFtdcOrderField &corder, Order *order) {
-//    cerr<< " 响应 | 撤单成功..."
-//      << "交易所:"<<corder.ExchangeID
-//      <<" 报单编号:"<<corder.OrderSysID<<endl;
+	order->id.init_id = atoi(corder.OrderRef);
+	order->id.order_id = atoi(corder.OrderSysID);
+	order->contract.code = corder.InstrumentID;
+	order->contract.exch_type = map2QDExchType(corder.ExchangeID);
+	char dt[19] = { 0 };
+	strcpy(dt, corder.InsertDate);
+	strcat(dt, corder.ActiveTime);
+	order->datetime = Util::strDateTime2TimePoint(dt);
+	order->direction = fromCtpDirection(corder.Direction);
+	order->hedge_type = fromCtpHedge(corder.CombHedgeFlag[0]);
+//	order->milliseconds = 
+	order->price = corder.LimitPrice;
+	order->price_type = fromCtpPriceType(corder.OrderPriceType);
+	order->side = fromCtpTradeSide(corder.CombOffsetFlag[0]);
+	order->volume = corder.VolumeTotalOriginal;
 }
 
 inline void fromCtpPosition(const CThostFtdcInvestorPositionField &cpos, Position *pos) {
-    cerr<<" 响应 | 合约:"<<cpos.InstrumentID
-//      <<" 方向:"<<MapDirection(pInvestorPosition->PosiDirection-2,false)
-      <<" 总持仓:"<<cpos.Position
-      <<" 昨仓:"<<cpos.YdPosition 
-      <<" 今仓:"<<cpos.TodayPosition
-      <<" 持仓盈亏:"<<cpos.PositionProfit
-      <<" 保证金:"<<cpos.UseMargin<<endl;
+	pos->contract.code = cpos.InstrumentID;
+	pos->positionDate = fromCtpPositionDate(cpos.PositionDate);
+	pos->direction = fromCtpDirection(cpos.PosiDirection);
+	pos->hedge_type = fromCtpHedge(cpos.HedgeFlag);
+	pos->margin_ratio = cpos.MarginRateByMoney;
+	pos->use_margin = cpos.UseMargin;
+	pos->volume = cpos.TodayPosition;
+	pos->yd_volume = cpos.YdPosition;
 }
 
 inline void fromCtpTick(const CThostFtdcDepthMarketDataField &ctick, TickData *tick) {
-    cout<<"contract: "<<ctick.InstrumentID<<endl
-        <<"update time: "<<string(ctick.UpdateTime)<<endl
-        <<"update milliseconds: "<<ctick.UpdateMillisec<<endl
-        <<"buy 1: "<<ctick.BidPrice1 <<endl    
-        <<"trading day: "<<(ctick.TradingDay)<<endl;
-//	///交易日
-//	TThostFtdcDateType	TradingDay;
-//	///合约代码
-//	TThostFtdcInstrumentIDType	InstrumentID;
-//	///交易所代码
-//	TThostFtdcExchangeIDType	ExchangeID;
-//	///合约在交易所的代码
-//	TThostFtdcExchangeInstIDType	ExchangeInstID;
-//	///最新价
-//	TThostFtdcPriceType	LastPrice;
-//	///上次结算价
-//	TThostFtdcPriceType	PreSettlementPrice;
-//	///昨收盘
-//	TThostFtdcPriceType	PreClosePrice;
-//	///昨持仓量
-//	TThostFtdcLargeVolumeType	PreOpenInterest;
-//	///今开盘
-//	TThostFtdcPriceType	OpenPrice;
-//	///最高价
-//	TThostFtdcPriceType	HighestPrice;
-//	///最低价
-//	TThostFtdcPriceType	LowestPrice;
-//	///数量
-//	TThostFtdcVolumeType	Volume;
-//	///成交金额
-//	TThostFtdcMoneyType	Turnover;
-//	///持仓量
-//	TThostFtdcLargeVolumeType	OpenInterest;
-//	///今收盘
-//	TThostFtdcPriceType	ClosePrice;
-//	///本次结算价
-//	TThostFtdcPriceType	SettlementPrice;
-//	///涨停板价
-//	TThostFtdcPriceType	UpperLimitPrice;
-//	///跌停板价
-//	TThostFtdcPriceType	LowerLimitPrice;
-//	///昨虚实度
-//	TThostFtdcRatioType	PreDelta;
-//	///今虚实度
-//	TThostFtdcRatioType	CurrDelta;
-//	///最后修改时间
-//	TThostFtdcTimeType	UpdateTime;
-//	///最后修改毫秒
-//	TThostFtdcMillisecType	UpdateMillisec;
-//	///申买价一
-//	TThostFtdcPriceType	BidPrice1;
-//	///申买量一
-//	TThostFtdcVolumeType	BidVolume1;
-//	///申卖价一
-//	TThostFtdcPriceType	AskPrice1;
-//	///申卖量一
-//	TThostFtdcVolumeType	AskVolume1;
-//	///申买价二
-//	TThostFtdcPriceType	BidPrice2;
-//	///申买量二
-//	TThostFtdcVolumeType	BidVolume2;
-//	///申卖价二
-//	TThostFtdcPriceType	AskPrice2;
-//	///申卖量二
-//	TThostFtdcVolumeType	AskVolume2;
-//	///申买价三
-//	TThostFtdcPriceType	BidPrice3;
-//	///申买量三
-//	TThostFtdcVolumeType	BidVolume3;
-//	///申卖价三
-//	TThostFtdcPriceType	AskPrice3;
-//	///申卖量三
-//	TThostFtdcVolumeType	AskVolume3;
-//	///申买价四
-//	TThostFtdcPriceType	BidPrice4;
-//	///申买量四
-//	TThostFtdcVolumeType	BidVolume4;
-//	///申卖价四
-//	TThostFtdcPriceType	AskPrice4;
-//	///申卖量四
-//	TThostFtdcVolumeType	AskVolume4;
-//	///申买价五
-//	TThostFtdcPriceType	BidPrice5;
-//	///申买量五
-//	TThostFtdcVolumeType	BidVolume5;
-//	///申卖价五
-//	TThostFtdcPriceType	AskPrice5;
-//	///申卖量五
-//	TThostFtdcVolumeType	AskVolume5;
-//	///当日均价
-//	TThostFtdcPriceType	AveragePrice;
+	tick->contract.code = ctick.InstrumentID;
+	tick->contract.exch_type = map2QDExchType(ctick.ExchangeID);
+	tick->create_time = std::chrono::system_clock::now();
+	char dt[19] = { 0 };
+	strcpy(dt, ctick.TradingDay);
+	strcat(dt, ctick.UpdateTime);
+	tick->dt = Util::strDateTime2TimePoint(dt);
+	tick->millisec = ctick.UpdateMillisec;
+	tick->price = ctick.LastPrice;
+	tick->volume = ctick.Volume;
 }
 
 /////投机
