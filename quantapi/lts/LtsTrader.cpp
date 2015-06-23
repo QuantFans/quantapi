@@ -4,7 +4,7 @@
  * @author HonePhy
  * Copyright () 2014-2020 QuantDigger. All rights reserved.
  * @chanege-log 	
-		2015-06-14 æ ¹æ®quantapiæ¥å£çš„è°ƒæ•´åšä¿®æ”¹
+		2015-06-14 ¸ù¾İquantapi½Ó¿ÚµÄµ÷Õû×öĞŞ¸Ä
  * @version 0.1
  * @date 2015-04-10
  */
@@ -20,13 +20,13 @@
 #include "quantapi/lts/LtsMapping.h"
 
 namespace Global {
-    tm g_today;   ///< å½“æ—¥æ—¥æœŸï¼Œåœ¨ç™»å…¥äº¤æ˜“æ¥å£çš„æ—¶å€™è¢«åˆå§‹åŒ–ã€‚
+    tm g_today;   ///< µ±ÈÕÈÕÆÚ£¬ÔÚµÇÈë½»Ò×½Ó¿ÚµÄÊ±ºò±»³õÊ¼»¯¡£
 } /* Global */
 
 namespace QuantApi {
 
-std::vector<CSecurityFtdcOrderField*> orderList; //å·²ç»æŠ¥å•åˆ—è¡¨
-std::vector<CSecurityFtdcTradeField*> tradeList; //æˆäº¤åˆ—è¡¨
+std::vector<CSecurityFtdcOrderField*> orderList; //ÒÑ¾­±¨µ¥ÁĞ±í
+std::vector<CSecurityFtdcTradeField*> tradeList; //³É½»ÁĞ±í
 
 
 LtsTrader::LtsTrader(char* trade_front) {
@@ -123,32 +123,32 @@ int LtsTrader::order(const Order &order, bool syn) {
 	if (syn) synLock();
 	CSecurityFtdcInputOrderField req;
 	memset(&req, 0, sizeof(req));	
-	strcpy(req.BrokerID, broker_id_);  									//åº”ç”¨å•å…ƒä»£ç 	
-	strcpy(req.InvestorID, user_id_); 									//æŠ•èµ„è€…ä»£ç 	
-	strcpy(req.InstrumentID, order.contract.code.c_str()); 				//åˆçº¦ä»£ç 
+	strcpy(req.BrokerID, broker_id_);  									//Ó¦ÓÃµ¥Ôª´úÂë	
+	strcpy(req.InvestorID, user_id_); 									//Í¶×ÊÕß´úÂë	
+	strcpy(req.InstrumentID, order.contract.code.c_str()); 				//ºÏÔ¼´úÂë
 	
-	sprintf(req.OrderRef, "%d", order.id.init_id);						//æŠ¥å•å¼•ç”¨
-	req.Direction = Mapping::toLtsDirection(order.direction);  			//ä¹°å–æ–¹å‘ è¦ä¿®æ”¹
-	req.CombHedgeFlag[0] = Mapping::toLtsHedge(order.hedge_type);		//ç»„åˆæŠ•æœºå¥—ä¿æ ‡å¿—	
-	req.OrderPriceType = Mapping::toLtsPriceType(order.price_type);		//ä»·æ ¼ç±»å‹=å¸‚ä»·æˆ–é™ä»·
-	req.CombOffsetFlag[0] = Mapping::toLtsTradeSide(order.side);		//ç»„åˆå¼€å¹³æ ‡å¿—:å¼€ä»“
+	sprintf(req.OrderRef, "%d", order.id.init_id);						//±¨µ¥ÒıÓÃ
+	req.Direction = Mapping::toLtsDirection(order.direction);  			//ÂòÂô·½Ïò ÒªĞŞ¸Ä
+	req.CombHedgeFlag[0] = Mapping::toLtsHedge(order.hedge_type);		//×éºÏÍ¶»úÌ×±£±êÖ¾	
+	req.OrderPriceType = Mapping::toLtsPriceType(order.price_type);		//¼Û¸ñÀàĞÍ=ÊĞ¼Û»òÏŞ¼Û
+	req.CombOffsetFlag[0] = Mapping::toLtsTradeSide(order.side);		//×éºÏ¿ªÆ½±êÖ¾:¿ª²Ö
 	
-	sprintf(req.LimitPrice, "%f", order.price); 								//ä»·æ ¼
-	req.VolumeTotalOriginal = order.volume;										//æ•°é‡	
+	sprintf(req.LimitPrice, "%f", order.price); 								//¼Û¸ñ
+	req.VolumeTotalOriginal = order.volume;										//ÊıÁ¿	
 	
-	req.VolumeCondition = SECURITY_FTDC_VC_AV; 							//æˆäº¤é‡ç±»å‹:ä»»ä½•æ•°é‡
-	req.MinVolume = 1;													//æœ€å°æˆäº¤é‡:1	
+	req.VolumeCondition = SECURITY_FTDC_VC_AV; 							//³É½»Á¿ÀàĞÍ:ÈÎºÎÊıÁ¿
+	req.MinVolume = 1;													//×îĞ¡³É½»Á¿:1	
 	
-	req.ContingentCondition = SECURITY_FTDC_CC_Immediately;  			//è§¦å‘æ¡ä»¶:ç«‹å³
-	req.ForceCloseReason = SECURITY_FTDC_FCC_NotForceClose;				//å¼ºå¹³åŸå› :éå¼ºå¹³
+	req.ContingentCondition = SECURITY_FTDC_CC_Immediately;  			//´¥·¢Ìõ¼ş:Á¢¼´
+	req.ForceCloseReason = SECURITY_FTDC_FCC_NotForceClose;				//Ç¿Æ½Ô­Òò:·ÇÇ¿Æ½
 	
-	req.IsAutoSuspend = 0;												//è‡ªåŠ¨æŒ‚èµ·æ ‡å¿—:å¦	
-	req.UserForceClose = 0;   											//ç”¨æˆ·å¼ºè¯„æ ‡å¿—:å¦
+	req.IsAutoSuspend = 0;												//×Ô¶¯¹ÒÆğ±êÖ¾:·ñ	
+	req.UserForceClose = 0;   											//ÓÃ»§Ç¿ÆÀ±êÖ¾:·ñ
     
 	if (0 == order.price){
-        req.TimeCondition = SECURITY_FTDC_TC_IOC;						//æœ‰æ•ˆæœŸç±»å‹:ç«‹å³å®Œæˆï¼Œå¦åˆ™æ’¤é”€
+        req.TimeCondition = SECURITY_FTDC_TC_IOC;						//ÓĞĞ§ÆÚÀàĞÍ:Á¢¼´Íê³É£¬·ñÔò³·Ïú
     }else{
-        req.TimeCondition = SECURITY_FTDC_TC_GFD;  						//æœ‰æ•ˆæœŸç±»å‹:å½“æ—¥æœ‰æ•ˆ
+        req.TimeCondition = SECURITY_FTDC_TC_GFD;  						//ÓĞĞ§ÆÚÀàĞÍ:µ±ÈÕÓĞĞ§
     }
 
 	int ret = api_->ReqOrderInsert(&req, nextRequestId());
@@ -171,23 +171,23 @@ int LtsTrader::cancel_order(int orderSeq, bool syn) {
 	}
 	if(!found)
 	{
-		std::cerr <<" è¯·æ±‚ | æŠ¥å•ä¸å­˜åœ¨."<< std::endl; 
+		std::cerr <<" ÇëÇó | ±¨µ¥²»´æÔÚ."<< std::endl; 
 		return 0;
 	} 
 
 	CSecurityFtdcInputOrderActionField req;
 	memset(&req, 0, sizeof(req));
-	strcpy(req.BrokerID, broker_id_);   //ç»çºªå…¬å¸ä»£ç 	
-	strcpy(req.InvestorID, user_id_); //æŠ•èµ„è€…ä»£ç 
-	//strcpy(req.OrderRef, pOrderRef); //æŠ¥å•å¼•ç”¨	
-	//req.FrontID = frontId;           //å‰ç½®ç¼–å·	
-	//req.SessionID = sessionId;       //ä¼šè¯ç¼–å·
+	strcpy(req.BrokerID, broker_id_);   //¾­¼Í¹«Ë¾´úÂë	
+	strcpy(req.InvestorID, user_id_); //Í¶×ÊÕß´úÂë
+	//strcpy(req.OrderRef, pOrderRef); //±¨µ¥ÒıÓÃ	
+	//req.FrontID = frontId;           //Ç°ÖÃ±àºÅ	
+	//req.SessionID = sessionId;       //»á»°±àºÅ
     strcpy(req.ExchangeID, orderList[i]->ExchangeID);
-   // strcpy(req.OrderSysID, orderList[i]->OrderSysID); Ltsä¸­æ— æ­¤å­—æ®µ
-	req.ActionFlag = SECURITY_FTDC_AF_Delete;  //æ“ä½œæ ‡å¿— 
+   // strcpy(req.OrderSysID, orderList[i]->OrderSysID); LtsÖĞÎŞ´Ë×Ö¶Î
+	req.ActionFlag = SECURITY_FTDC_AF_Delete;  //²Ù×÷±êÖ¾ 
 
 	int ret = api_->ReqOrderAction(&req, nextRequestId());
-	std::cout << " è¯·æ±‚ | å‘é€æ’¤å•..." <<((ret == 0)?"æˆåŠŸ":"å¤±è´¥") << std::endl;
+	std::cout << " ÇëÇó | ·¢ËÍ³·µ¥..." <<((ret == 0)?"³É¹¦":"Ê§°Ü") << std::endl;
 	wait(syn);
 	return ret;
 }
@@ -214,67 +214,67 @@ void LtsTrader::registerFront(char *pszFrontAddress, bool syn) {
 	api_->RegisterFront(pszFrontAddress);
 }
 
-//----------------------ç»§æ‰¿è‡ªCSecurityFtdcTraderSpiçš„å›è°ƒæ–¹æ³•å®ç°-------
-///å½“å®¢æˆ·ç«¯ä¸äº¤æ˜“åå°å»ºç«‹èµ·é€šä¿¡è¿æ¥æ—¶ï¼ˆè¿˜æœªç™»å½•å‰ï¼‰ï¼Œè¯¥æ–¹æ³•è¢«è°ƒç”¨ã€‚
+//----------------------¼Ì³Ğ×ÔCSecurityFtdcTraderSpiµÄ»Øµ÷·½·¨ÊµÏÖ-------
+///µ±¿Í»§¶ËÓë½»Ò×ºóÌ¨½¨Á¢ÆğÍ¨ĞÅÁ¬½ÓÊ±£¨»¹Î´µÇÂ¼Ç°£©£¬¸Ã·½·¨±»µ÷ÓÃ¡£
 void LtsTrader::OnFrontConnected() {
 	std::cout << " trader front connectd..." << std::endl;
 	synUnlock();
 }
 
-///å½“å®¢æˆ·ç«¯ä¸äº¤æ˜“åå°é€šä¿¡è¿æ¥æ–­å¼€æ—¶ï¼Œè¯¥æ–¹æ³•è¢«è°ƒç”¨ã€‚å½“å‘ç”Ÿè¿™ä¸ªæƒ…å†µåï¼ŒAPIä¼šè‡ªåŠ¨é‡æ–°è¿æ¥ï¼Œå®¢æˆ·ç«¯å¯ä¸åšå¤„ç†ã€‚
+///µ±¿Í»§¶ËÓë½»Ò×ºóÌ¨Í¨ĞÅÁ¬½Ó¶Ï¿ªÊ±£¬¸Ã·½·¨±»µ÷ÓÃ¡£µ±·¢ÉúÕâ¸öÇé¿öºó£¬API»á×Ô¶¯ÖØĞÂÁ¬½Ó£¬¿Í»§¶Ë¿É²»×ö´¦Àí¡£
 void LtsTrader::OnFrontDisconnected(int nReason) {
-	std::cerr << " å“åº” | è¿æ¥ä¸­æ–­..."
+	std::cerr << " ÏìÓ¦ | Á¬½ÓÖĞ¶Ï..."
 		<< " reason=" << nReason << std::endl;
 }
 
-///å¿ƒè·³è¶…æ—¶è­¦å‘Šã€‚å½“é•¿æ—¶é—´æœªæ”¶åˆ°æŠ¥æ–‡æ—¶ï¼Œè¯¥æ–¹æ³•è¢«è°ƒç”¨ã€‚
+///ĞÄÌø³¬Ê±¾¯¸æ¡£µ±³¤Ê±¼äÎ´ÊÕµ½±¨ÎÄÊ±£¬¸Ã·½·¨±»µ÷ÓÃ¡£
 void LtsTrader::OnHeartBeatWarning(int nTimeLapse) {
-	std::cerr << " å“åº” | å¿ƒè·³è¶…æ—¶è­¦å‘Š..."
+	std::cerr << " ÏìÓ¦ | ĞÄÌø³¬Ê±¾¯¸æ..."
 		<< " TimerLapse = " << nTimeLapse << std::endl;
 }
 
-///é”™è¯¯åº”ç­”
+///´íÎóÓ¦´ğ
 void LtsTrader::OnRspError(CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	IsErrorRspInfo(pRspInfo);
 	if (bIsLast) synUnlock();
 }
 
-/// ç™»å½•è¯·æ±‚å“åº”
+/// µÇÂ¼ÇëÇóÏìÓ¦
 void LtsTrader::OnRspUserLogin(CSecurityFtdcRspUserLoginField *pRspUserLogin, 
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pRspUserLogin) {
 		set_logined(true);
 		set_front_id(pRspUserLogin->FrontID);
 		set_session_id(pRspUserLogin->SessionID);
-		std::cout << " å“åº” | ç”¨æˆ·ç™»å½•æˆåŠŸ...å½“å‰äº¤æ˜“æ—¥:"
+		std::cout << " ÏìÓ¦ | ÓÃ»§µÇÂ¼³É¹¦...µ±Ç°½»Ò×ÈÕ:"
 			<< pRspUserLogin->TradingDay << std::endl;
 	}
 	if (bIsLast) synUnlock();
 }
 
-///æŠ¥å•å½•å…¥è¯·æ±‚å“åº”
+///±¨µ¥Â¼ÈëÇëÇóÏìÓ¦
 void LtsTrader::OnRspOrderInsert(CSecurityFtdcInputOrderField *pInputOrder, 
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pInputOrder){
-		std::cout << "å“åº” | æŠ¥å•æäº¤æˆåŠŸ...æŠ¥å•å¼•ç”¨:" 
+		std::cout << "ÏìÓ¦ | ±¨µ¥Ìá½»³É¹¦...±¨µ¥ÒıÓÃ:" 
 			<< pInputOrder->OrderRef << std::endl;
 	}
 }
 
-///æŠ¥å•æ“ä½œè¯·æ±‚å“åº”
+///±¨µ¥²Ù×÷ÇëÇóÏìÓ¦
 void LtsTrader::OnRspOrderAction(CSecurityFtdcInputOrderActionField *pInputOrderAction, 
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pInputOrderAction)
 	{
 		Order order;
         Mapping::fromLtsOrder(*pInputOrderAction, &order);
-        // æ’¤å•å“åº”
+        // ³·µ¥ÏìÓ¦
         on_cancel_order(order);
 	}
 	if (bIsLast) synUnlock();
 }
 
-///è¯·æ±‚æŸ¥è¯¢åˆçº¦å“åº”
+///ÇëÇó²éÑ¯ºÏÔ¼ÏìÓ¦
 void LtsTrader::OnRspQryInstrument(CSecurityFtdcInstrumentField *pInstrument, 
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pInstrument)
@@ -286,7 +286,7 @@ void LtsTrader::OnRspQryInstrument(CSecurityFtdcInstrumentField *pInstrument,
 	if (bIsLast) synUnlock();
 }
 
-///è¯·æ±‚æŸ¥è¯¢æŠ•èµ„è€…æŒä»“å“åº”
+///ÇëÇó²éÑ¯Í¶×ÊÕß³Ö²ÖÏìÓ¦
 void LtsTrader::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pInvestorPosition,
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pInvestorPosition)
@@ -298,7 +298,7 @@ void LtsTrader::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pIn
 	if (bIsLast) synUnlock();
 }
 
-///è¯·æ±‚æŸ¥è¯¢èµ„é‡‘è´¦æˆ·å“åº”
+///ÇëÇó²éÑ¯×Ê½ğÕË»§ÏìÓ¦
 void LtsTrader::OnRspQryTradingAccount(CSecurityFtdcTradingAccountField *pTradingAccount, 
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pTradingAccount)
@@ -310,10 +310,10 @@ void LtsTrader::OnRspQryTradingAccount(CSecurityFtdcTradingAccountField *pTradin
 	if (bIsLast) synUnlock();
 }
 
-///æŠ•èµ„è€…ç»“ç®—ç»“æœç¡®è®¤å“åº”
+///Í¶×ÊÕß½áËã½á¹ûÈ·ÈÏÏìÓ¦
 //void OnRspSettlementInfoConfirm(CThostFtdcSettlementInfoConfirmField *pSettlementInfoConfirm, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
-///è¯·æ±‚æŸ¥è¯¢è¡Œæƒ…å“åº”
+///ÇëÇó²éÑ¯ĞĞÇéÏìÓ¦
 void LtsTrader::OnRspQryDepthMarketData(CSecurityFtdcDepthMarketDataField *pDepthMarketData, 
 			CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (!IsErrorRspInfo(pRspInfo) && pDepthMarketData)
@@ -325,7 +325,7 @@ void LtsTrader::OnRspQryDepthMarketData(CSecurityFtdcDepthMarketDataField *pDept
 	if (bIsLast) synUnlock();
 }
 
-///æŠ¥å•é€šçŸ¥
+///±¨µ¥Í¨Öª
 void LtsTrader::OnRtnOrder(CSecurityFtdcOrderField *pOrder) {
 /*
 	CSecurityFtdcOrderField* order = new CSecurityFtdcOrderField();
@@ -346,22 +346,22 @@ void LtsTrader::OnRtnOrder(CSecurityFtdcOrderField *pOrder) {
     Mapping::fromLtsOrder(*pOrder, &order);
     //
     on_order(order);
-	std::cout << " å›æŠ¥ | æŠ¥å•å·²æäº¤...åºå·:" << pOrder->BrokerOrderSeq << std::endl;
+	std::cout << " »Ø±¨ | ±¨µ¥ÒÑÌá½»...ĞòºÅ:" << pOrder->BrokerOrderSeq << std::endl;
 }
 
-///æˆäº¤é€šçŸ¥
+///³É½»Í¨Öª
 void LtsTrader::OnRtnTrade(CSecurityFtdcTradeField *pTrade) {
     Transaction trans;
     Mapping::fromLtsTransaction(*pTrade, &trans);
     //
     on_transaction(trans);
-    std::cout<<" Response | deal,  order id:"<<pTrade->OrderSysID<< std::endl;  // æˆäº¤åæ‰æœ‰çš„å­—æ®µï¼Ÿ
+    std::cout<<" Response | deal,  order id:"<<pTrade->OrderSysID<< std::endl;  // ³É½»ºó²ÅÓĞµÄ×Ö¶Î£¿
     synUnlock();
 }
 
 bool LtsTrader::IsErrorRspInfo(CSecurityFtdcRspInfoField *pRspInfo)
 {
-	// å¦‚æœErrorID != 0, è¯´æ˜æ”¶åˆ°äº†é”™è¯¯çš„å“åº”
+	// Èç¹ûErrorID != 0, ËµÃ÷ÊÕµ½ÁË´íÎóµÄÏìÓ¦
 	bool ret = ((pRspInfo) && (pRspInfo->ErrorID != 0));
 	if (ret){
 		std::cerr << " Error: | " << pRspInfo->ErrorMsg << std::endl;

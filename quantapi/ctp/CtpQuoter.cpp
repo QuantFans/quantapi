@@ -31,8 +31,6 @@ CtpQuoter::CtpQuoter(char *trade_front) {
     api_->RegisterSpi(this);
     locked_ = false;
     registerFront(trade_front, true);
-    api_->Init(); // 回调在init之后才会运行！
-    wait(true);      
 };
 
 CtpQuoter::~CtpQuoter(){ 
@@ -41,12 +39,12 @@ CtpQuoter::~CtpQuoter(){
 };
 
 void CtpQuoter::registerFront(char *pszFrontAddress, bool sync) {
-    if (sync) synLock();
     api_->RegisterFront(pszFrontAddress);
+	api_->Init(); // 回调在init之后才会运行！
+	wait(true);
 }
 
 int CtpQuoter::login(const LogonInfo &info, bool sync) {
-    if (sync) synLock();
 	CThostFtdcReqUserLoginField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, info.broker_id); 
@@ -59,7 +57,6 @@ int CtpQuoter::login(const LogonInfo &info, bool sync) {
 }
 
 int CtpQuoter::logout(const LogonInfo &info, bool sync) {
-    if (sync) synLock();
     CThostFtdcUserLogoutField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, info.broker_id); 
@@ -75,7 +72,6 @@ int CtpQuoter::reqTick(const std::vector<Contract> &contracts, bool sync) {
     for (int i = 0; i < contracts.size(); i++) {
         contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
     }
-    if (sync) synLock();
 	int ret = api_->SubscribeMarketData(contractsL, contracts.size());
     delete [] contractsL;
     wait(sync);
@@ -87,7 +83,6 @@ int CtpQuoter::unReqTick(const std::vector<Contract> &contracts, bool sync) {
     for (int i = 0; i < contracts.size(); i++) {
         contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
     }
-    if (sync) synLock();
 	int ret = api_->UnSubscribeMarketData(contractsL, contracts.size());
     delete [] contractsL;
     wait(sync);
@@ -118,20 +113,20 @@ void CtpQuoter::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
         // 记录当期日期
         Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
     }
-    if(bIsLast) synUnlock();
+    if(bIsLast) notify();
 }
 
 void CtpQuoter::OnRspError(CThostFtdcRspInfoField *pRspInfo, 
                            int nRequestID, 
                            bool bIsLast) {
-  if(bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 void CtpQuoter::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, 
                                 CThostFtdcRspInfoField *pRspInfo, 
                                 int nRequestID, 
                                 bool bIsLast) {
-  if(bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 void CtpQuoter::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument,
@@ -139,7 +134,7 @@ void CtpQuoter::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecifi
                                      int nRequestID,bool bIsLast) {
 
     //取消订阅行情应答, 待实现
-    if(bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 void CtpQuoter::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, 
@@ -152,12 +147,12 @@ void CtpQuoter::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificI
     } else {
         cerr<<"************"<<endl;
     }
-  if(bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 void CtpQuoter::OnFrontConnected() {
 	cerr<<" quoter front connectd..."<<endl;
-    synUnlock();
+	notify();
 }
 
 void CtpQuoter::OnFrontDisconnected(int nReason) {

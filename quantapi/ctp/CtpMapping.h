@@ -170,7 +170,7 @@ inline void fromCtpTransaction(const CThostFtdcTradeField &ctrans, Transaction *
 	trans->id.init_id = atoi(ctrans.OrderRef);
 	trans->id.order_id = atoi(ctrans.OrderSysID);
 	trans->price = ctrans.Price;
-//	Í¨¹ýÉÏ²ãon_transaction Í¨¹ý²éÑ¯ÒÑÏÂµ¥µÄOrderÖÐµÄorderIdºÍcontrantÓëÕâ¸öÎÇºÏµÄ¶©µ¥À´¸³Öµ
+//	通过上层应用中存放的orderList与该order中的OrderId和Contract成员比较找出相同Order，则可以对以下成员赋值。
 //	trans->price_type = fromCtpPriceType 
 	trans->side = fromCtpTradeSide(ctrans.OffsetFlag);
 	trans->volume = ctrans.Volume;
@@ -185,7 +185,7 @@ inline void fromCtpOrder(const CThostFtdcInputOrderActionField &corder, Order *o
 	
 	order->datetime = std::chrono::system_clock::now();
 
-//	Í¨¹ýÉÏ²ãon_transaction Í¨¹ý²éÑ¯ÒÑÏÂµ¥µÄOrderÖÐµÄorderIdºÍcontrantÓëÕâ¸öÎÇºÏµÄ¶©µ¥À´¸³Öµ
+//	通过上层应用中存放的orderList与该order中的OrderId和Contract成员比较找出相同Order，则可以对以下成员赋值。
 //	order->direction =  
 //	order->hedge_type = 
 //	order->price_type =
@@ -225,7 +225,8 @@ inline void fromCtpPosition(const CThostFtdcInvestorPositionField &cpos, Positio
 
 inline void fromCtpTick(const CThostFtdcDepthMarketDataField &ctick, TickData *tick) {
 	tick->contract.code = ctick.InstrumentID;
-	tick->contract.exch_type = map2QDExchType(ctick.ExchangeID);
+	if (ctick.ExchangeID != NULL && ctick.ExchangeID[0] != '\0')
+		tick->contract.exch_type = map2QDExchType(ctick.ExchangeID);
 	tick->create_time = std::chrono::system_clock::now();
 	char dt[19] = { 0 };
 	strcpy(dt, ctick.TradingDay);

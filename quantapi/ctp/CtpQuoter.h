@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <mutex>
+#include <condition_variable>
 #include "../Quoter.h" 
 #include "../datastruct.h"
 #include "ThostFtdcMdApi.h" 
@@ -71,9 +72,23 @@ protected:
 
  private:
 
-    inline void synLock() { syn_flag_.try_lock(); locked_ = true;}
-    inline void synUnlock() { if(locked_) { syn_flag_.unlock(); locked_ = false; }}
-    inline void wait(bool towait) { if(towait) { synLock(); synUnlock(); }}
+//    inline void synLock() { syn_flag_.try_lock(); locked_ = true;}
+//    inline void synUnlock() { if(locked_) { syn_flag_.unlock(); locked_ = false; }}
+    inline void wait(bool towait) 
+	{ 
+		if(towait) 
+		{
+			std::unique_lock<std::mutex> lock(syn_flag_);
+			locked_ = true;
+			m_cond.wait(lock);
+		}
+	}
+
+	inline void notify() {
+		std::unique_lock <std::mutex> lock(syn_flag_);
+		locked_ = false;
+		m_cond.notify_all();
+	}
 
     inline int nextRequestId() { return ++request_id_; }
 
@@ -157,8 +172,10 @@ protected:
 
     CThostFtdcMdApi     *api_;                  ///< 请求实例
     int                 request_id_;            ///< 会话编号
-    std::mutex          syn_flag_;              ///< 与回调的同步信号。
-    std::atomic<bool>   locked_;                 ///< 是否被锁住，用来决定解锁操作是否执行。
+	
+	std::mutex              syn_flag_;              ///< 同步
+	std::atomic<bool>       locked_;                ///< 是否被锁住，用来决定解锁操作是否执行。
+	std::condition_variable m_cond;					//条件变量
 };
     
 } /* QuantDigger */

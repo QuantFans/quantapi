@@ -37,20 +37,16 @@ CtpTrader::~CtpTrader() {
 }
 
 void CtpTrader::registerFront(char *pszFrontAddress, bool sync) {
-    //if (sync) synLock();
     api_->RegisterFront(pszFrontAddress);
 	api_->Init();
 	wait(sync);      // 回调在init之后才会运行！
-	//synUnlock();
     cerr<<"registerFront..."<<endl;
-
 }
 
 void CtpTrader::qrySettlementInfo(const char *broker_id, 
                                   const char *investor_id, 
                                   const char* trading_day,
                                   bool sync) {
-    //if (sync) synLock();
     std::cerr<<"settle"<<std::endl;
     CThostFtdcQrySettlementInfoField pQrySettlementInfo;
     memset(&pQrySettlementInfo, 0, sizeof(pQrySettlementInfo));
@@ -63,7 +59,6 @@ void CtpTrader::qrySettlementInfo(const char *broker_id,
 
 int CtpTrader::settlementInfoConfirm(bool sync)
 {
-    //if (sync) synLock();
     CThostFtdcSettlementInfoConfirmField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, broker_id_);
@@ -77,7 +72,6 @@ int CtpTrader::settlementInfoConfirm(bool sync)
 
 int CtpTrader::login(const LogonInfo &info,
         bool sync) {
-    //if (sync) synLock();
     CThostFtdcReqUserLoginField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, info.broker_id); 
@@ -93,7 +87,6 @@ int CtpTrader::login(const LogonInfo &info,
 }
 
 int CtpTrader::logout(const LogonInfo &info, bool sync) {
-    //if (sync) synLock();
     CThostFtdcUserLogoutField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, info.broker_id); 
@@ -105,7 +98,6 @@ int CtpTrader::logout(const LogonInfo &info, bool sync) {
 }
 
 int CtpTrader::order(const Order &order, bool sync) {
-    //if (sync) synLock();
     CThostFtdcInputOrderField req;
     memset(&req, 0, sizeof(req));	
     strcpy(req.BrokerID, broker_id_);  //应用单元代码	
@@ -138,7 +130,6 @@ int CtpTrader::order(const Order &order, bool sync) {
 
 int CtpTrader::reqTick(const Contract &c, bool sync)
 {
-    //if (sync) synLock();
     CThostFtdcQryDepthMarketDataField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.InstrumentID, c.code.c_str());//为空表示查询所有合约
@@ -150,7 +141,6 @@ int CtpTrader::reqTick(const Contract &c, bool sync)
 
 int CtpTrader::reqContract(Contract *c, bool sync)
 {
-    //if (sync) synLock();
     CThostFtdcQryInstrumentField req;
     memset(&req, 0, sizeof(req));
     // 如果为空，表示查询所有合约
@@ -164,7 +154,6 @@ int CtpTrader::reqContract(Contract *c, bool sync)
 
 int CtpTrader::reqCaptial(bool sync)
 {
-    //if (sync) synLock();
     CThostFtdcQryTradingAccountField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, broker_id_);
@@ -253,7 +242,6 @@ int CtpTrader::cancel_order(int orderSeq, bool sync)
 // ---------------------- 回调函数 -----------------------------------
 void CtpTrader::OnFrontConnected() {
     cout<<" trader front connectd..."<<endl;
-//    synUnlock();
 	notify();
 }
 
@@ -267,7 +255,7 @@ void CtpTrader::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
         cerr<<" 响应 | 用户登录成功...当前交易日:"
             <<pRspUserLogin->TradingDay<<endl;     
     }
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -281,7 +269,7 @@ void CtpTrader::OnRspSettlementInfoConfirm(
         //       char a[5] = "0";
         //    ReqOrderInsert("ru1405", 's', a, 0, 1);
     }
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -293,7 +281,7 @@ void CtpTrader::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument,
         Mapping::toCtpContract(*pInstrument, &c);
         on_contract(c);
     }
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -305,7 +293,7 @@ void CtpTrader::OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMa
         Mapping::fromCtpTick(*pDepthMarketData, &tick);
         on_tick(tick);
     }
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -318,7 +306,7 @@ void CtpTrader::OnRspQryTradingAccount(
         Mapping::fromCtpCaptial(*pTradingAccount, &cap);
         on_captial(cap);
     }
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -331,7 +319,7 @@ void CtpTrader::OnRspQryInvestorPosition(
         Mapping::fromCtpPosition(*pInvestorPosition, &pos);
         on_position(pos);
     }
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -346,7 +334,7 @@ void CtpTrader::OnRspOrderAction(
         on_cancel_order(order);
     }
 
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
@@ -355,11 +343,11 @@ void CtpTrader::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder,
 {
     if( !IsErrorRspInfo(pRspInfo) && pInputOrder ){
 		cerr << "Response | order insert sucess, reference::" << pInputOrder->OrderRef << endl
-			<< "								  borkerId::" << pInputOrder->BrokerID << endl
-			<< "								 direction::" << pInputOrder->Direction << endl;
+			<< "						borkerId::" << pInputOrder->BrokerID << endl
+			<< "						direction::" << pInputOrder->Direction << endl;
     }
 
-	if (bIsLast) //synUnlock();
+	if (bIsLast)
 		notify();
 }
 
@@ -372,9 +360,9 @@ void CtpTrader::OnRtnOrder(CThostFtdcOrderField *pOrder)
     on_order(order);
 
     cerr<<" Response | order arrive exchange, order id::"<<pOrder->BrokerOrderSeq<<endl
-		<< "								  borkerId::" << pOrder->BrokerID << endl
-		<< "								 direction::" << pOrder->Direction << endl
-		<< "								 reference::" << pOrder->OrderRef << endl;
+		<< "							borkerId::" << pOrder->BrokerID << endl
+		<< "							direction::" << pOrder->Direction << endl
+		<< "							reference::" << pOrder->OrderRef << endl;
 
 	notify();
 }
@@ -387,8 +375,6 @@ void CtpTrader::OnRtnTrade(CThostFtdcTradeField *pTrade)
     //
     on_transaction(trans);
     cerr<<" Response | deal,  order id:"<<pTrade->OrderSysID<<endl;  // 成交后才有的字段？
-
-    //synUnlock();
 	notify();
 }
 
@@ -409,7 +395,7 @@ void CtpTrader::OnHeartBeatWarning(int nTimeLapse)
 void CtpTrader::OnRspError(CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
     IsErrorRspInfo(pRspInfo);
-    if(bIsLast) //synUnlock();
+    if(bIsLast)
 		notify();
 }
 
