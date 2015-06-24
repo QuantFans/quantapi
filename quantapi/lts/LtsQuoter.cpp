@@ -33,8 +33,6 @@ LtsQuoter::LtsQuoter(char *trade_front) {
     api_->RegisterSpi(this);
     locked_ = false;
     registerFront(trade_front, true);
-    api_->Init(); // 回调在init之后才会运行！
-    wait(true);
 }
 
 LtsQuoter::~LtsQuoter(){ 
@@ -43,13 +41,13 @@ LtsQuoter::~LtsQuoter(){
 }
 
 void LtsQuoter::registerFront(char *pszFrontAddress, bool syn) {
-    if (syn) synLock();
     api_->RegisterFront(pszFrontAddress);
+	api_->Init(); // 回调在init之后才会运行！
+	wait(syn);
     std::cout<<"Register Front..."<<std::endl;
 }
 
 int LtsQuoter::login(const LogonInfo &info, bool syn) {
-    if (syn) synLock();
 	CSecurityFtdcReqUserLoginField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, info.broker_id); 
@@ -62,7 +60,6 @@ int LtsQuoter::login(const LogonInfo &info, bool syn) {
 }
 
 int LtsQuoter::logout(const LogonInfo &info, bool syn) {
-    if (syn) synLock();
     CSecurityFtdcUserLogoutField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, info.broker_id); 
@@ -78,10 +75,9 @@ int LtsQuoter::reqTick(const std::vector<Contract> &contracts, bool syn) {
 	char *pExchageID = NULL;
     for (int i = 0; i < contracts.size(); i++) {
         contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
-		pExchageID = const_cast<char*>(map2ReadableExchType(contracts[i].exch_type));
+//		pExchageID = const_cast<char*>(mapFromQDExchType(contracts[i].exch_type).c_str());
     }
-    if (syn) synLock();
-	int ret = api_->SubscribeMarketData(contractsL, contracts.size(), pExchageID);
+	int ret = api_->SubscribeMarketData(contractsL, contracts.size(), "SSE");
 	delete [] contractsL;
     wait(syn);
     return ret;
@@ -92,9 +88,8 @@ int LtsQuoter::unReqTick(const std::vector<Contract> &contracts, bool syn) {
 	char *pExchageID = NULL;
     for (int i = 0; i < contracts.size(); i++) {
         contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
-		pExchageID = const_cast<char*>(map2ReadableExchType(contracts[i].exch_type));
+//		pExchageID = const_cast<char*>(mapFromQDExchType(contracts[i].exch_type).c_str());
     }
-    if (syn) synLock();
     int ret = api_->UnSubscribeMarketData(contractsL, contracts.size(), pExchageID);
 	delete [] contractsL;
     wait(syn);
@@ -120,13 +115,13 @@ void LtsQuoter::OnRspUserLogin(CSecurityFtdcRspUserLoginField *pRspUserLogin,
         // 记录当期日期
 		Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
     }
-    if(bIsLast) synUnlock();
+    if(bIsLast) notify();
 }
 
 void LtsQuoter::OnRspError(CSecurityFtdcRspInfoField *pRspInfo, 
                            int nRequestID, 
                            bool bIsLast) {
-  if(bIsLast) synUnlock();
+  if(bIsLast) notify();
 }
 
 bool LtsQuoter::IsErrorRspInfo(CSecurityFtdcRspInfoField *pRspInfo) {
@@ -142,13 +137,13 @@ void LtsQuoter::OnRspUserLogout(CSecurityFtdcUserLogoutField *pUserLogout,
                                 CSecurityFtdcRspInfoField *pRspInfo, 
                                 int nRequestID, 
                                 bool bIsLast) {
-  if(bIsLast) synUnlock();
+  if(bIsLast) notify();
 }
 
 void LtsQuoter::OnRspUnSubMarketData(CSecurityFtdcSpecificInstrumentField *pSpecificInstrument,
                                      CSecurityFtdcRspInfoField *pRspInfo,
                                      int nRequestID,bool bIsLast) {
-  if(bIsLast) synUnlock();
+  if(bIsLast) notify();
 }
 
 void LtsQuoter::OnRspSubMarketData(CSecurityFtdcSpecificInstrumentField *pSpecificInstrument, 
@@ -160,12 +155,12 @@ void LtsQuoter::OnRspSubMarketData(CSecurityFtdcSpecificInstrumentField *pSpecif
     } else {
         std::cerr<<"************"<<std::endl;
     }
-  if(bIsLast) synUnlock();
+  if(bIsLast) notify();
 }
 
 void LtsQuoter::OnFrontConnected() {
 	std::cout<<" quoter front connectd..."<<std::endl;
-    synUnlock();
+    notify();
 }
 
 void LtsQuoter::OnFrontDisconnected(int nReason) {

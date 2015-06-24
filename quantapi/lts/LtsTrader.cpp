@@ -35,8 +35,6 @@ LtsTrader::LtsTrader(char* trade_front) {
 	api_->RegisterSpi(this);
 	locked_ = false;
 	registerFront(trade_front, true);
-	api_->Init();
-	wait(true);
 }
 
 LtsTrader::~LtsTrader() {
@@ -46,7 +44,6 @@ LtsTrader::~LtsTrader() {
 
 
 int LtsTrader::login(const LogonInfo &info, bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcReqUserLoginField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, info.broker_id);
@@ -61,7 +58,6 @@ int LtsTrader::login(const LogonInfo &info, bool syn) {
 }
 
 int LtsTrader::logout(const LogonInfo &info, bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcUserLogoutField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, broker_id_);
@@ -73,7 +69,6 @@ int LtsTrader::logout(const LogonInfo &info, bool syn) {
 }
 
 int LtsTrader::reqContract(const Contract &c, bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcQryInstrumentField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.InstrumentID, c.code.c_str());
@@ -84,7 +79,6 @@ int LtsTrader::reqContract(const Contract &c, bool syn) {
 }
 
 int LtsTrader::reqTick(const Contract &c, bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcQryDepthMarketDataField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.InstrumentID, c.code.c_str());
@@ -95,7 +89,6 @@ int LtsTrader::reqTick(const Contract &c, bool syn) {
 }
 
 int LtsTrader::reqCaptial(bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcQryTradingAccountField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, broker_id_);
@@ -107,7 +100,6 @@ int LtsTrader::reqCaptial(bool syn) {
 }
 
 int LtsTrader::reqPosition(const Contract &contract, bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcQryInvestorPositionField req;
 	memset(&req, 0, sizeof(req));
 	strcpy(req.BrokerID, broker_id_);
@@ -120,7 +112,6 @@ int LtsTrader::reqPosition(const Contract &contract, bool syn) {
 }
 
 int LtsTrader::order(const Order &order, bool syn) {
-	if (syn) synLock();
 	CSecurityFtdcInputOrderField req;
 	memset(&req, 0, sizeof(req));	
 	strcpy(req.BrokerID, broker_id_);  									//应用单元代码	
@@ -158,7 +149,6 @@ int LtsTrader::order(const Order &order, bool syn) {
 }
 
 int LtsTrader::cancel_order(int orderSeq, bool syn) {
-	if (syn) synLock();
 	bool found=false; 
 	unsigned int i=0;
 	for(i=0;i<orderList.size();i++)
@@ -196,29 +186,29 @@ void LtsTrader::qrySettlementInfo(const char *broker_id,
                                   const char *investor_id, 
                                   const char* trading_day,
                                   bool syn) {
-	if (syn) synLock();
+	//if (syn) synLock();
 	//do nothing 
-	wait(syn);
+	//wait(syn);
 }
 
-//-----------------------------------------------------
+
 void LtsTrader::settlementInfoConfirm(bool syn) {
-	if (syn) synLock();
+	//if (syn) synLock();
 	//do nothing;
-	wait(syn);
+	//wait(syn);
 }
 
 void LtsTrader::registerFront(char *pszFrontAddress, bool syn) {
-	if (syn)
-		synLock();
 	api_->RegisterFront(pszFrontAddress);
+	api_->Init();
+	wait(syn);
 }
 
 //----------------------继承自CSecurityFtdcTraderSpi的回调方法实现-------
 ///当客户端与交易后台建立起通信连接时（还未登录前），该方法被调用。
 void LtsTrader::OnFrontConnected() {
 	std::cout << " trader front connectd..." << std::endl;
-	synUnlock();
+	notify();
 }
 
 ///当客户端与交易后台通信连接断开时，该方法被调用。当发生这个情况后，API会自动重新连接，客户端可不做处理。
@@ -236,7 +226,7 @@ void LtsTrader::OnHeartBeatWarning(int nTimeLapse) {
 ///错误应答
 void LtsTrader::OnRspError(CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	IsErrorRspInfo(pRspInfo);
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 /// 登录请求响应
@@ -249,7 +239,7 @@ void LtsTrader::OnRspUserLogin(CSecurityFtdcRspUserLoginField *pRspUserLogin,
 		std::cout << " 响应 | 用户登录成功...当前交易日:"
 			<< pRspUserLogin->TradingDay << std::endl;
 	}
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 ///报单录入请求响应
@@ -271,7 +261,7 @@ void LtsTrader::OnRspOrderAction(CSecurityFtdcInputOrderActionField *pInputOrder
         // 撤单响应
         on_cancel_order(order);
 	}
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 ///请求查询合约响应
@@ -283,7 +273,7 @@ void LtsTrader::OnRspQryInstrument(CSecurityFtdcInstrumentField *pInstrument,
         Mapping::toLtsContract(*pInstrument, &c);
         on_contract(c);
 	}
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 ///请求查询投资者持仓响应
@@ -295,7 +285,7 @@ void LtsTrader::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pIn
         Mapping::fromLtsPosition(*pInvestorPosition, &pos);
         on_position(pos);
 	}
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 ///请求查询资金账户响应
@@ -307,7 +297,7 @@ void LtsTrader::OnRspQryTradingAccount(CSecurityFtdcTradingAccountField *pTradin
         Mapping::fromLtsCaptial(*pTradingAccount, &cap);
         on_captial(cap);
 	}
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 ///投资者结算结果确认响应
@@ -322,7 +312,7 @@ void LtsTrader::OnRspQryDepthMarketData(CSecurityFtdcDepthMarketDataField *pDept
         Mapping::fromLtsTick(*pDepthMarketData, &tick);
         on_tick(tick);
 	}
-	if (bIsLast) synUnlock();
+	if (bIsLast) notify();
 }
 
 ///报单通知
@@ -347,6 +337,7 @@ void LtsTrader::OnRtnOrder(CSecurityFtdcOrderField *pOrder) {
     //
     on_order(order);
 	std::cout << " 回报 | 报单已提交...序号:" << pOrder->BrokerOrderSeq << std::endl;
+	notify();
 }
 
 ///成交通知
@@ -356,7 +347,7 @@ void LtsTrader::OnRtnTrade(CSecurityFtdcTradeField *pTrade) {
     //
     on_transaction(trans);
     std::cout<<" Response | deal,  order id:"<<pTrade->OrderSysID<< std::endl;  // 成交后才有的字段？
-    synUnlock();
+	notify();
 }
 
 bool LtsTrader::IsErrorRspInfo(CSecurityFtdcRspInfoField *pRspInfo)

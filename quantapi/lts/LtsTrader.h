@@ -13,6 +13,7 @@
 #define LTSTRADER_H
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 #include <quantapi/Trader.h>
 #include "SecurityFtdcUserApiDataType.h"
 #include "SecurityFtdcTraderApi.h"
@@ -89,13 +90,25 @@ private:
 	///注册前置地址
 	virtual void registerFront(char *pszFrontAdderss, bool syn=false);
 
-	inline void synUnlock() { if(locked_) syn_flag_.unlock();}
+//	inline void synUnlock() { if(locked_) syn_flag_.unlock();}
 	
-	inline void synLock() { syn_flag_.lock(); locked_ = true; }
+//	inline void synLock() { syn_flag_.lock(); locked_ = true; }
 	
 	inline int nextRequestId() { return ++request_id_; }
 	
-	inline void wait(bool towait) { if(towait) { syn_flag_.lock(); syn_flag_.unlock(); }}
+	inline void notify() {
+		std::unique_lock <std::mutex> lock(syn_flag_);
+		locked_ = false;
+		m_cond.notify_all();
+	}
+
+	inline void wait(bool towait) { 
+		if(towait) { 
+			std::unique_lock<std::mutex> lock(syn_flag_);
+			locked_ = true;
+			m_cond.wait(lock);
+		}
+	}
 
 	inline void set_front_id(int id) { front_id_ = id; }
 
@@ -160,8 +173,10 @@ private:
 	int							order_ref_;			///< 订单编号
 	CSecurityFtdcTraderApi		*api_;				///< 请求实例
 	int                     	request_id_;            ///< 会话编号
-    std::mutex              	syn_flag_;              ///< 同步信号
-    std::atomic<bool>       	locked_;                 ///< 是否被锁住，用来决定解锁操作是否执行。
+
+	std::mutex              syn_flag_;              ///< 同步
+	std::atomic<bool>       locked_;                ///< 是否被锁住，用来决定解锁操作是否执行。
+	std::condition_variable m_cond;					//条件变量
 };	
 
 } /* QuantDigger */
