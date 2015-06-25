@@ -60,6 +60,7 @@ int main(int argc, const char *argv[])
     Contract c;
     //c.code = "ru1509" ;
 	c.code = "10000031";
+	c.exch_type = '5';
     vector<Contract> clist;
     clist.push_back(c);
 

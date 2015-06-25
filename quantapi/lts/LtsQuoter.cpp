@@ -75,7 +75,7 @@ int LtsQuoter::reqTick(const std::vector<Contract> &contracts, bool syn) {
 	char *pExchageID = NULL;
     for (int i = 0; i < contracts.size(); i++) {
         contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
-//		pExchageID = const_cast<char*>(mapFromQDExchType(contracts[i].exch_type).c_str());
+		pExchageID = const_cast<char*>(mapFromQDExchType(contracts[i].exch_type).c_str());
     }
 	int ret = api_->SubscribeMarketData(contractsL, contracts.size(), "SSE");
 	delete [] contractsL;
@@ -88,9 +88,9 @@ int LtsQuoter::unReqTick(const std::vector<Contract> &contracts, bool syn) {
 	char *pExchageID = NULL;
     for (int i = 0; i < contracts.size(); i++) {
         contractsL[i] = const_cast<char*>(contracts[i].code.c_str());
-//		pExchageID = const_cast<char*>(mapFromQDExchType(contracts[i].exch_type).c_str());
+		pExchageID = const_cast<char*>(mapFromQDExchType(contracts[i].exch_type).c_str());
     }
-    int ret = api_->UnSubscribeMarketData(contractsL, contracts.size(), pExchageID);
+    int ret = api_->UnSubscribeMarketData(contractsL, contracts.size(), "SSE");
 	delete [] contractsL;
     wait(syn);
     return ret;
