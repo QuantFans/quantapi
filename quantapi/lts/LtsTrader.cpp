@@ -18,7 +18,7 @@
 #include "../../util/log_assert.h"
 #include "quantapi/mapping.h"
 #include "quantapi/lts/LtsMapping.h"
-
+/*
 namespace Global {
     tm g_today;   ///< 当日日期，在登入交易接口的时候被初始化。
 } /* Global */

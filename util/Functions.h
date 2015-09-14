@@ -21,7 +21,9 @@
 #include "log_assert.h"
 #include "definition.h"
 #include "Exceptions.h" 
+
 namespace Util {
+
 typedef std::chrono::system_clock::time_point DateTime;
 
 inline int lexical_cast(const std::string& arg)

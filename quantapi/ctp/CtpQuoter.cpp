@@ -17,7 +17,7 @@
 
 #include "CtpMapping.h" 
 #include "../../util/Functions.h" 
-
+/*
 namespace Global {
     tm g_today;   ///< 当日日期，在登入交易接口的时候被初始化。
 } /* Global */
@@ -25,7 +25,7 @@ namespace Global {
 namespace QuantApi {
 using namespace std;
 
-CtpQuoter::CtpQuoter(char *trade_front) {
+CtpQuoter::CtpQuoter(char *trade_front):logger(Logger::getRootLogger()) {
     assert(trade_front);
     api_ = CThostFtdcMdApi::CreateFtdcMdApi();
     api_->RegisterSpi(this);
@@ -41,7 +41,7 @@ CtpQuoter::~CtpQuoter(){
 void CtpQuoter::registerFront(char *pszFrontAddress, bool sync) {
     api_->RegisterFront(pszFrontAddress);
 	api_->Init(); // 回调在init之后才会运行！
-	wait(true);
+	wait(sync);
 }
 
 int CtpQuoter::login(const LogonInfo &info, bool sync) {
@@ -111,7 +111,7 @@ void CtpQuoter::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
         set_session_id(pRspUserLogin->SessionID);
         cerr<<"OnRspUserLogin"<<std::endl;
         // 记录当期日期
-        Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
+        //Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
     }
     if(bIsLast) notify();
 }
@@ -143,19 +143,20 @@ void CtpQuoter::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificI
                                    bool bIsLast) {
     if (!IsErrorRspInfo(pRspInfo)) {
         // 数据订阅成功， 待实现。
-        cerr<<"OnRspSubMarketData"<<endl;
+        cout<<"OnRspSubMarketData succ"<<endl;
     } else {
-        cerr<<"************"<<endl;
+        cout<<"OnRspSubMarketData fail"<<endl;
     }
 	if (bIsLast) notify();
 }
 
 void CtpQuoter::OnFrontConnected() {
-	cerr<<" quoter front connectd..."<<endl;
+    LOG4CXX_INFO(logger, "quoter front connected...");
 	notify();
 }
 
 void CtpQuoter::OnFrontDisconnected(int nReason) {
+    LOG4CXX_ERROR(logger, "quoter front disconnected...");
 	cerr<<" 响应 | 连接中断..." 
 	  << " reason=" << nReason << endl;
 }

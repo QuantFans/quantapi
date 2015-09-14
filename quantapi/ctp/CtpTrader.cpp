@@ -23,7 +23,9 @@ using namespace std;
 vector<CThostFtdcOrderField*> orderList; // 已经提交的报单, 无论是否撤销
 vector<CThostFtdcTradeField*> tradeList; // 已经成交的报道
 
-CtpTrader::CtpTrader(char* trade_front) {
+int CtpTrader::request_id_ = 0;
+
+CtpTrader::CtpTrader(char* trade_front):logger(Logger::getRootLogger()) {
     LOG_ASSERT(trade_front);
     api_ = CThostFtdcTraderApi::CreateFtdcTraderApi();
     api_->RegisterSpi(this);
@@ -37,35 +39,45 @@ CtpTrader::~CtpTrader() {
 }
 
 void CtpTrader::registerFront(char *pszFrontAddress, bool sync) {
+    LOG4CXX_INFO(logger, std::string("registerFront:")+pszFrontAddress);
     api_->RegisterFront(pszFrontAddress);
 	api_->Init();
 	wait(sync);      // 回调在init之后才会运行！
-    cerr<<"registerFront..."<<endl;
 }
 
 void CtpTrader::qrySettlementInfo(const char *broker_id, 
                                   const char *investor_id, 
                                   const char* trading_day,
                                   bool sync) {
-    std::cerr<<"settle"<<std::endl;
     CThostFtdcQrySettlementInfoField pQrySettlementInfo;
     memset(&pQrySettlementInfo, 0, sizeof(pQrySettlementInfo));
     strcpy(pQrySettlementInfo.BrokerID, broker_id);
     strcpy(pQrySettlementInfo.InvestorID, investor_id);
     strcpy(pQrySettlementInfo.TradingDay, trading_day);
-    api_->ReqQrySettlementInfo(&pQrySettlementInfo, nextRequestId());
+    api_->ReqQrySettlementInfo(&pQrySettlementInfo, currentRequestId());
     wait(sync);
 }
 
-int CtpTrader::settlementInfoConfirm(bool sync)
+int CtpTrader::settlementInfoConfirm(const char* brokerId,
+                                     const char* userId,
+                                     const int   requestId,
+                                     bool sync)
 {
     CThostFtdcSettlementInfoConfirmField req;
     memset(&req, 0, sizeof(req));
-    strcpy(req.BrokerID, broker_id_);
-    strcpy(req.InvestorID, user_id_);
-    int ret = api_->ReqSettlementInfoConfirm(&req, nextRequestId());
+    strcpy(req.BrokerID, brokerId);
+    strcpy(req.InvestorID, userId);
+    int ret = api_->ReqSettlementInfoConfirm(&req, requestId);
 	cerr << "Sending settlement info confirm.." << ((ret == 0) ? "sucess" : "failed") << endl;
-    wait(sync);
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending settlement info confirm..success,id:")+userId);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending settlement info confirm..fialed,id:")+userId);
+    }
+    //wait(sync);
     return ret;
 }
 
@@ -74,30 +86,46 @@ int CtpTrader::login(const LogonInfo &info,
         bool sync) {
     CThostFtdcReqUserLoginField req;
     memset(&req, 0, sizeof(req));
+    strcpy(broker_id_, info.broker_id);
+    strcpy(user_id_, info.user_id);
     strcpy(req.BrokerID, info.broker_id); 
     strcpy(req.UserID, info.user_id); 
     strcpy(req.Password, info.password);
-    strcpy(broker_id_, info.broker_id); 
-    strcpy(user_id_, info.user_id); 
-    int ret = api_->ReqUserLogin(&req, nextRequestId());
-	cerr << " sending | Logining..." << ((ret == 0) ? "Sucess" : "Failed") << endl;
+    int ret = api_->ReqUserLogin(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending login request succ,id:")+info.user_id);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending login request fialed,id:")+info.user_id);
+        return ret;
+    }
     wait(sync);
-    settlementInfoConfirm();
     return ret;
 }
 
-int CtpTrader::logout(const LogonInfo &info, bool sync) {
+int CtpTrader::logout(bool sync) {
     CThostFtdcUserLogoutField req;
     memset(&req, 0, sizeof(req));
-    strcpy(req.BrokerID, info.broker_id); 
-    strcpy(req.UserID, info.user_id); 
-    int ret = api_->ReqUserLogout(&req, nextRequestId());
-	cerr << " sending | Logout..." << ((ret == 0) ? "Sucess" : "Failed") << endl;
+    strcpy(req.BrokerID, broker_id_); 
+    strcpy(req.UserID, user_id_); 
+    int ret = api_->ReqUserLogout(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending logout request succ,id:")+user_id_);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending lougut request fialed,id:")+user_id_);
+        return ret;
+    }
     wait(sync);
     return ret;
 }
 
-int CtpTrader::order(const Order &order, bool sync) {
+int CtpTrader::order(const Order &order, bool sync) 
+{
     CThostFtdcInputOrderField req;
     memset(&req, 0, sizeof(req));	
     strcpy(req.BrokerID, broker_id_);  //应用单元代码	
@@ -122,8 +150,16 @@ int CtpTrader::order(const Order &order, bool sync) {
     req.TimeCondition = THOST_FTDC_TC_GFD;  //有效期类型:当日有效
     //req.TimeCondition = THOST_FTDC_TC_IOC;//有效期类型:立即完成，否则撤销
 
-    int ret = api_->ReqOrderInsert(&req, nextRequestId());
-	std::cout << "\n=======发送下单请求,结果:"<< ret << "============" << std::endl;
+    int ret = api_->ReqOrderInsert(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending order insert..success,id:")+user_id_);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending order insert..fialed,id:")+user_id_);
+        return ret;
+    }
     wait(sync);
     return ret;
 }
@@ -133,8 +169,16 @@ int CtpTrader::reqTick(const Contract &c, bool sync)
     CThostFtdcQryDepthMarketDataField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.InstrumentID, c.code.c_str());//为空表示查询所有合约
-    int ret = api_->ReqQryDepthMarketData(&req, nextRequestId());
-	cerr << " 请求 | 发送合约报价查询..." << ((ret == 0) ? "成功" : "失败") << endl;
+    int ret = api_->ReqQryDepthMarketData(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, "Sending contract tick request..success");
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, "Sending contract tick request..fialed");
+        return ret;
+    }
     wait(sync);
     return ret;
 }
@@ -145,7 +189,7 @@ int CtpTrader::reqContract(Contract *c, bool sync)
     memset(&req, 0, sizeof(req));
     // 如果为空，表示查询所有合约
     strcpy(req.InstrumentID, c->code.c_str());
-    int ret = api_->ReqQryInstrument(&req, nextRequestId());
+    int ret = api_->ReqQryInstrument(&req, currentRequestId());
     /// @todo 多合约处理
     //    Mapping::fromCtpContract(*req, c);
     wait(sync);
@@ -158,41 +202,46 @@ int CtpTrader::reqCaptial(bool sync)
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, broker_id_);
     strcpy(req.InvestorID, user_id_);
-    int ret = api_->ReqQryTradingAccount(&req, nextRequestId());
+    int ret = api_->ReqQryTradingAccount(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending req account..success,id:")+user_id_);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending req account..fialed,id:")+user_id_);
+        return ret;
+    }
     wait(sync);
-    cerr<<" 请求 | 发送资金查询..."<<((ret == 0)?"成功":"失败")<<endl;
     return ret;
 }
 
 int CtpTrader::reqPosition(const Contract &contract, bool sync)
 {
-
-    //if (sync) synLock();
     CThostFtdcQryInvestorPositionField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, broker_id_);
     strcpy(req.InvestorID, user_id_);
     strcpy(req.InstrumentID, contract.code.c_str());	
-    int ret = api_->ReqQryInvestorPosition(&req, nextRequestId());
+    int ret = api_->ReqQryInvestorPosition(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending req Position..success,id:")+user_id_);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending req Position..fialed,id:")+user_id_);
+        return ret;
+    }
     wait(sync);
-    cerr<<" 请求 | 发送持仓查询..."<<((ret == 0)?"成功":"失败")<<endl;
     return ret;
 }
 
-int CtpTrader::cancel_order(int orderSeq, bool sync)
+int CtpTrader::cancel_order(/*const char* brokerId, 
+                            const char* userId,*/
+                            const Order& order, 
+                            bool sync)
 {
-    //if (sync) synLock();
-
-    bool found=false;
-    unsigned int i=0;
-    for(i=0;i<orderList.size();i++){
-        if(orderList[i]->BrokerOrderSeq == orderSeq){
-            found = true;
-            break;
-        }
-    }
-    if(!found) {cerr<<" 请求 | 报单不存在."<<endl; return 0;} 
-
     CThostFtdcInputOrderActionField req;
     memset(&req, 0, sizeof(req));
     strcpy(req.BrokerID, broker_id_);   //经纪公司代码	
@@ -200,13 +249,22 @@ int CtpTrader::cancel_order(int orderSeq, bool sync)
     //strcpy(req.OrderRef, pOrderRef); //报单引用	
     //req.FrontID = frontId;           //前置编号	
     //req.SessionID = sessionId;       //会话编号
-    strcpy(req.ExchangeID, orderList[i]->ExchangeID);
-    strcpy(req.OrderSysID, orderList[i]->OrderSysID);
+    strcpy(req.ExchangeID, mapFromQDExchType(order.contract.exch_type).c_str());
+    sprintf(req.OrderSysID, "%d", order.id.order_id );
+    //strcpy(req.OrderSysID, order.id.order_id);
     req.ActionFlag = THOST_FTDC_AF_Delete;  //操作标志 
 
-    int ret = api_->ReqOrderAction(&req, nextRequestId());
+    int ret = api_->ReqOrderAction(&req, currentRequestId());
+    if (ret == 0)
+    {
+        LOG4CXX_INFO(logger, std::string("Sending order cancel..success,id:")+user_id_);
+    }
+    else
+    {
+        LOG4CXX_ERROR(logger, std::string("Sending order cancel..fialed,id:")+user_id_);
+        return ret;
+    }
     wait(sync);
-    cerr<< " 请求 | 发送撤单..." <<((ret == 0)?"成功":"失败") << endl;
     return ret;
 
 }
@@ -241,36 +299,66 @@ int CtpTrader::cancel_order(int orderSeq, bool sync)
 
 // ---------------------- 回调函数 -----------------------------------
 void CtpTrader::OnFrontConnected() {
-    cout<<" trader front connectd..."<<endl;
+    LOG4CXX_INFO(logger, "trader front connectd...");
 	notify();
 }
 
 void CtpTrader::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
-    if ( !IsErrorRspInfo(pRspInfo) && pRspUserLogin ) {  
+    if ( !IsErrorRspInfo(pRspInfo) && pRspUserLogin && bIsLast) {  
         // 保存会话参数	
         set_logined(true);
         set_front_id(pRspUserLogin->FrontID);
         set_session_id(pRspUserLogin->SessionID);
-        cerr<<" 响应 | 用户登录成功...当前交易日:"
-            <<pRspUserLogin->TradingDay<<endl;     
+        LOG4CXX_INFO(logger, std::string("OnResponse | UserLogin Succ...TradingDate")+pRspUserLogin->TradingDay);
+        
+        settlementInfoConfirm(pRspUserLogin->BrokerID, pRspUserLogin->UserID,
+                nRequestID, false);
     }
-    if(bIsLast)
-		notify();
+    else if (bIsLast){
+        OperateStatus ops;
+        ops.brokerId = pRspUserLogin->BrokerID;
+        ops.userId = pRspUserLogin->UserID;
+        ops.status = pRspInfo->ErrorID;
+        ops.errmsg = pRspInfo->ErrorMsg;
+        ops.requestId = requestId2str(nRequestID);
+        on_login(ops);
+    }
+}
+
+void CtpTrader::OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, 
+        CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast){
+    if (bIsLast){
+        notify();
+        OperateStatus ops;
+        ops.brokerId = pUserLogout->BrokerID;
+        ops.userId = pUserLogout->UserID;
+        ops.status = pRspInfo->ErrorID;
+        ops.errmsg = pRspInfo->ErrorMsg;
+        ops.requestId = requestId2str(nRequestID);
+        on_logout(ops);
+    }
 }
 
 void CtpTrader::OnRspSettlementInfoConfirm(
         CThostFtdcSettlementInfoConfirmField  *pSettlementInfoConfirm, 
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {	
     if( !IsErrorRspInfo(pRspInfo) && pSettlementInfoConfirm){
-        cerr<<" 响应 | 结算单..."<<pSettlementInfoConfirm->InvestorID
-            <<"...<"<<pSettlementInfoConfirm->ConfirmDate
-            <<" "<<pSettlementInfoConfirm->ConfirmTime<<">...确认"<<endl;
-        //       char a[5] = "0";
-        //    ReqOrderInsert("ru1405", 's', a, 0, 1);
+        LOG4CXX_INFO(logger, std::string("OnResponse SettlementInfo id:")
+                + pSettlementInfoConfirm->InvestorID + ",time:"
+                + pSettlementInfoConfirm->ConfirmDate + " " 
+                + pSettlementInfoConfirm->ConfirmTime);
     }
-    if(bIsLast)
+    if(bIsLast){
+        OperateStatus ops;
+        ops.brokerId = pSettlementInfoConfirm->BrokerID;
+        ops.userId = pSettlementInfoConfirm->InvestorID;
+        ops.status = pRspInfo->ErrorID;
+        ops.errmsg = pRspInfo->ErrorMsg;
+        ops.requestId = requestId2str(nRequestID);
+        on_login(ops);
 		notify();
+    }
 }
 
 void CtpTrader::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, 
@@ -281,90 +369,155 @@ void CtpTrader::OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument,
         Mapping::toCtpContract(*pInstrument, &c);
         on_contract(c);
     }
-    if(bIsLast)
+    else {
+        LOG4CXX_ERROR(logger, "OnRsp | QryInstrument faild");
+    }
+    if(bIsLast){
 		notify();
+    }
 }
 
 void CtpTrader::OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData,
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
+    TickData tick;
     if (!IsErrorRspInfo(pRspInfo) && pDepthMarketData){
-        TickData tick;
         Mapping::fromCtpTick(*pDepthMarketData, &tick);
-        on_tick(tick);
     }
-    if(bIsLast)
+    if(bIsLast){
+        OperateStatus ops;
+        ops.status = pRspInfo->ErrorID;
+        ops.errmsg = pRspInfo->ErrorMsg;
+        ops.requestId = requestId2str(nRequestID);
+        on_tick(ops,tick);
 		notify();
+    }
 }
 
 void CtpTrader::OnRspQryTradingAccount(
         CThostFtdcTradingAccountField *pTradingAccount, 
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 { 
+    Captial cap;
     if (!IsErrorRspInfo(pRspInfo) &&  pTradingAccount){
-        Captial cap;
         Mapping::fromCtpCaptial(*pTradingAccount, &cap);
-        on_captial(cap);
     }
-    if(bIsLast)
+    if(bIsLast){
+        OperateStatus ops;
+        ops.brokerId = pTradingAccount->BrokerID;
+        ops.userId = pTradingAccount->AccountID;
+        if (pRspInfo){
+            ops.status = pRspInfo->ErrorID;
+            ops.errmsg = pRspInfo->ErrorMsg;
+        }
+        else
+        {
+            ops.status = 0;
+        }
+        ops.requestId = requestId2str(nRequestID);
+        on_captial(ops,cap);
 		notify();
+    }
 }
 
 void CtpTrader::OnRspQryInvestorPosition(
         CThostFtdcInvestorPositionField *pInvestorPosition, 
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 { 
+    Position pos;
+    pos.islast = bIsLast;
     if( !IsErrorRspInfo(pRspInfo) &&  pInvestorPosition ){
-        Position pos;
         Mapping::fromCtpPosition(*pInvestorPosition, &pos);
-        on_position(pos);
     }
-    if(bIsLast)
+    OperateStatus ops;
+    ops.brokerId = pInvestorPosition->BrokerID;
+    ops.userId = pInvestorPosition->InvestorID;
+    ops.status = pRspInfo->ErrorID;
+    ops.errmsg = pRspInfo->ErrorMsg;
+    ops.requestId = requestId2str(nRequestID);
+
+    if(bIsLast){
+        on_position(ops, pos);
 		notify();
+    }
 }
 
+//撤单失败才会执行次回调
 void CtpTrader::OnRspOrderAction(
         CThostFtdcInputOrderActionField *pInputOrderAction, 
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {	
+    Order order;
     if (!IsErrorRspInfo(pRspInfo) && pInputOrderAction){
-        Order order;
         Mapping::fromCtpOrder(*pInputOrderAction, &order);
-        // 撤单响应
-        on_cancel_order(order);
     }
 
+    OperateStatus ops;
+    ops.status = pRspInfo->ErrorID;
+    ops.errmsg = pRspInfo->ErrorMsg;
+    ops.requestId = requestId2str(nRequestID);
+    
     if(bIsLast)
+    {
+        // 撤单响应
+        on_cancel_order(ops, order);
 		notify();
+    }
 }
 
+//报单录入失败才会执行此回调
 void CtpTrader::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, 
         CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
+    Order order;
     if( !IsErrorRspInfo(pRspInfo) && pInputOrder ){
 		cerr << "Response | order insert sucess, reference::" << pInputOrder->OrderRef << endl
 			<< "						borkerId::" << pInputOrder->BrokerID << endl
 			<< "						direction::" << pInputOrder->Direction << endl;
     }
-
-	if (bIsLast)
+    OperateStatus ops;
+    ops.status = pRspInfo->ErrorID;
+    ops.errmsg = pRspInfo->ErrorMsg;
+    ops.requestId = requestId2str(nRequestID);
+	
+    if (bIsLast){
+        on_order(ops, order);
 		notify();
+    }
 }
 
-///报单回报
+///报单回报包括撤单回报
 void CtpTrader::OnRtnOrder(CThostFtdcOrderField *pOrder)
 {	
+    std::cout << "Order Rtn" << std::endl;
+    cerr<<" Response | order arrive exchange"<< endl
+        << "--------order id::"<<pOrder->BrokerOrderSeq<<endl
+		<< "--------borkerId::" << pOrder->BrokerID << endl
+		<< "-------direction::" << pOrder->Direction << endl
+		<< "-------reference::" << pOrder->OrderRef << endl
+        << "----------userid::" << pOrder->UserID << endl
+        << "-----investor_id::" << pOrder->InvestorID << endl
+        << "------OrderSysID::" << pOrder->OrderSysID << endl
+        << "------InsertDate::" << pOrder->InsertDate << endl
+        << "----InstrumentID::" << pOrder->InstrumentID << endl
+        << "------TradingDay::" << pOrder->TradingDay << endl
+        << "-----OrderStatus::" << pOrder->OrderStatus << endl
+        << "========================================================"<<endl ;
+    
     Order order;
     Mapping::fromCtpOrder(*pOrder, &order);
+    OperateStatus op;
+    op.status = 0;
+    op.requestId = "" ;
 
-    on_order(order);
+    if (pOrder->OrderStatus == 'a' )
+        return;
 
-    cerr<<" Response | order arrive exchange, order id::"<<pOrder->BrokerOrderSeq<<endl
-		<< "							borkerId::" << pOrder->BrokerID << endl
-		<< "							direction::" << pOrder->Direction << endl
-		<< "							reference::" << pOrder->OrderRef << endl;
+    else if (pOrder->OrderStatus == THOST_FTDC_OST_NoTradeQueueing )
+        on_order(op, order);
+    else if (pOrder->OrderStatus == THOST_FTDC_OST_Canceled)
+        on_cancel_order(op, order);
 
-	notify();
 }
 
 ///成交通知
@@ -381,14 +534,14 @@ void CtpTrader::OnRtnTrade(CThostFtdcTradeField *pTrade)
 void CtpTrader::OnFrontDisconnected(int nReason)
 {
     // 系统会自动重连。
-    cerr<<" 响应 | 连接中断..." 
+    cerr<<" OnRsponse | disconnected..." 
         << " reason=" << nReason << endl;
 }
 
 void CtpTrader::OnHeartBeatWarning(int nTimeLapse)
 {
     // 长时间没收到报文，会被调用。
-    cerr<<" 响应 | 心跳超时警告..." 
+    cerr<<" OnRsponse | Missing heartBeat Warning..." 
         << " TimerLapse = " << nTimeLapse << endl;
 }
 
@@ -404,7 +557,8 @@ bool CtpTrader::IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo)
     // 如果ErrorID != 0, 说明收到了错误的响应
     bool ret = ((pRspInfo) && (pRspInfo->ErrorID != 0));
     if (ret){
-        cerr<<" Error: | "<<pRspInfo->ErrorMsg<<endl;
+        
+        cerr<<" Error: | ErrorID = " << pRspInfo->ErrorID << ", ErrorMsg = " <<pRspInfo->ErrorMsg<<endl;
     }
     return ret;
 }

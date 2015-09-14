@@ -14,10 +14,17 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
+
+#include <log4cxx/logger.h>
+
 #include "../Quoter.h" 
 #include "../datastruct.h"
-#include "ThostFtdcMdApi.h" 
+#include "ThostFtdcMdApi.h"
+
+using namespace log4cxx;
+
 namespace QuantApi {
+
 class CtpQuoterCallBack;
 
 /**
@@ -85,9 +92,12 @@ protected:
 	}
 
 	inline void notify() {
+        if (locked_)
+        {
 		std::unique_lock <std::mutex> lock(syn_flag_);
 		locked_ = false;
 		m_cond.notify_all();
+        }
 	}
 
     inline int nextRequestId() { return ++request_id_; }
@@ -176,6 +186,8 @@ protected:
 	std::mutex              syn_flag_;              ///< 同步
 	std::atomic<bool>       locked_;                ///< 是否被锁住，用来决定解锁操作是否执行。
 	std::condition_variable m_cond;					//条件变量
+
+    LoggerPtr   logger;
 };
     
 } /* QuantDigger */

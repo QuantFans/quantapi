@@ -13,8 +13,9 @@
 #include <string>
 #include <atomic>
 #include "datastruct.h" 
+
 namespace QuantApi {
-    
+
 /**
  * @brief 行情查询发起类的基类。
  *
@@ -72,6 +73,7 @@ class Quoter{
 
  private:
     std::atomic<bool>   logined_;
+
 };
 
 } /*  QuantApi */

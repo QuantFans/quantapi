@@ -2,11 +2,12 @@
 #include "datastruct.h"
 #include "mapping.h"
 
-extern tm g_today;
+//extern tm g_today;
 
 using namespace QuantApi;
 using namespace std;
     
+/*
 std::vector<DateTime> 
 Contract::getTradingTime(const Contract &contract) {
     /// @todo 从配置文件中读取
@@ -26,7 +27,7 @@ Contract::getTradingTime(const Contract &contract) {
     rst.push_back(system_clock::from_time_t(mktime(&tm1)));
     return rst;
 }
-
+*/
 std::vector<std::string> 
 Contract::getStrTradingTime(const Contract &contract) {
     std::vector<string> rst;

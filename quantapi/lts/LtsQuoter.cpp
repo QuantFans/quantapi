@@ -20,7 +20,7 @@
 #include <quantapi/lts/LtsMapping.h>
 #include "LtsQuoter.h"
 #include "../../util/Functions.h" 
-
+/*
 namespace Global {
     tm g_today;   ///< 当日日期，在登入交易接口的时候被初始化。
 } /* Global */
@@ -113,7 +113,7 @@ void LtsQuoter::OnRspUserLogin(CSecurityFtdcRspUserLoginField *pRspUserLogin,
             <<pRspUserLogin->TradingDay<<std::endl
             <<session_id()<<std::endl;
         // 记录当期日期
-		Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
+		//Util::strDate2Tm(pRspUserLogin->TradingDay, &Global::g_today);
     }
     if(bIsLast) notify();
 }

@@ -61,7 +61,7 @@ enum Direction {
  * @brief 开平仓标志 
  */
 enum TradeSide {
-   kBuy, ///< 多头开仓
+   kBuy = 1, ///< 多头开仓
    kShort,  ///< 空头开仓
    kCover, ///< 空头平仓
    kSell, ///< 多头平仓
@@ -81,12 +81,25 @@ enum PositionDate {
 };
 
 struct LogonInfo {
-    LogonInfo(const char *bid, const char *uid, const char *pwd) 
-            :broker_id(bid), user_id(uid), password(pwd) { }
+    LogonInfo(const char *bid, const char *uid, const char *pwd, const char* webuser = NULL) 
+            :broker_id(bid), user_id(uid), password(pwd), web_user(webuser) { }
     const char *broker_id;
     const char *user_id;
     const char *password;
+    const char *web_user;
 };
+
+/**
+ * @brief 操作状态。
+ */
+struct OperateStatus {
+    const char* brokerId;
+    const char* userId;
+    int status;
+    const char* errmsg;
+    std::string requestId;  
+};
+
 
 /**
  * @brief 合约标识类。
@@ -122,7 +135,7 @@ struct Contract {
 	}
 
      /** @brief 获取合约的交易时间 */
-    static std::vector<DateTime> getTradingTime(const Contract &contract);
+    //static std::vector<DateTime> getTradingTime(const Contract &contract);
     static std::vector<std::string> getStrTradingTime(const Contract &contract);
     static Price commission(const Contract &c, Price p, Volume v);
 
@@ -131,9 +144,9 @@ struct Contract {
 
     std::string code;       ///< 合约编码
     ExchType    exch_type;  ///< 交易所编码
-    float long_margin_ratio; ///< 多头保证金率
-    float short_margin_ratio; ///<  空头保证金率
-    float price_tick;   ///< 最小变动价位
+    float long_margin_ratio = 1; ///< 多头保证金率
+    float short_margin_ratio = 1; ///<  空头保证金率
+    float price_tick = 0.01;   ///< 最小变动价位
     float volume_multiple; ///< 合约数量乘数
 }; 
 
@@ -181,12 +194,14 @@ struct Order {
     Contract        contract;
     TradeSide       side;   ///< 开平仓标志
     Direction       direction;  ///< 多空方向
-    PriceType        price_type;
+    PriceType       price_type;
     HedgeType       hedge_type;
     Price           price;
     DateTime        datetime;
     Volume          volume;
     size_t          milliseconds;               ///< 毫秒延迟．
+    bool            islast;
+    bool            canceled;                   //撤单状态
 };
 
 
@@ -200,6 +215,8 @@ struct Transaction {
     Price           price;
     DateTime        datetime;
     Volume          volume;
+    int             trader_id;
+    bool            islast;
 };
 
 
@@ -211,7 +228,10 @@ struct Position {
     Volume volume;  ///< 今日持仓
     Volume yd_volume; ///< 上日持仓
     float use_margin; ///< 占用的保证金
-    float margin_ratio; ///< 保证金率
+    float margin_ratio; ///< 保证金率 
+    float profit; //持仓盈亏
+    float cost; //持仓成本
+    bool  islast;// 是否是持仓的最后一条合约
 };
 
 
@@ -260,13 +280,61 @@ struct TickData {
         return *this;
     }
     Contract    contract;
-    Price       price;            // 当其为0时，表示tick数据是无效的。
-    Volume      volume;
+    Price       price = 0;            // 当其为0时，表示tick数据是无效的。
+    unsigned long long volume = 0;
     DateTime    dt;
-    int         millisec;  
+    int         millisec = 0;  
     DateTime    create_time;    ///< 用于性能追踪，跟踪数据的流转时间。
     std::mutex  locker;
-    // union
+    double      total_price = 0;
+    Price       pre_close = 0;
+    Price       open = 0;
+    Price       high = 0;
+    Price       low = 0;
+    Price       average = 0;
+    DateTime    provider_time;   
+    // 买卖十档行情
+    Price       buy01_price = 0;
+    Price       buy02_price = 0;
+    Price       buy03_price = 0;
+    Price       buy04_price = 0;
+    Price       buy05_price = 0;
+    Price       buy06_price = 0;
+    Price       buy07_price = 0;
+    Price       buy08_price = 0;
+    Price       buy09_price = 0;
+    Price       buy10_price = 0;
+    Volume      buy01_volume = 0;
+    Volume      buy02_volume = 0;
+    Volume      buy03_volume = 0;
+    Volume      buy04_volume = 0;
+    Volume      buy05_volume = 0;
+    Volume      buy06_volume = 0;
+    Volume      buy07_volume = 0;
+    Volume      buy08_volume = 0;
+    Volume      buy09_volume = 0;
+    Volume      buy10_volume = 0;
+
+    Price       sell01_price = 0;
+    Price       sell02_price = 0;
+    Price       sell03_price = 0;
+    Price       sell04_price = 0;
+    Price       sell05_price = 0;
+    Price       sell06_price = 0;
+    Price       sell07_price = 0;
+    Price       sell08_price = 0;
+    Price       sell09_price = 0;
+    Price       sell10_price = 0;
+    Volume      sell01_volume = 0;
+    Volume      sell02_volume = 0;
+    Volume      sell03_volume = 0;
+    Volume      sell04_volume = 0;
+    Volume      sell05_volume = 0;
+    Volume      sell06_volume = 0;
+    Volume      sell07_volume = 0;
+    Volume      sell08_volume = 0;
+    Volume      sell09_volume = 0;
+    Volume      sell10_volume = 0;
 };
     
 } /* QuantApi */

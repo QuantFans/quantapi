@@ -11,10 +11,13 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <sstream>
+#include <log4cxx/logger.h>
 #include "../Trader.h" 
 #include "ThostFtdcUserApiDataType.h" 
 #include "ThostFtdcTraderApi.h" 
 
+using namespace log4cxx;
 namespace QuantApi {
 
 /**
@@ -37,10 +40,10 @@ public:
      * @param info 登录信息
      * @param sync 是否同步调用
      */
-    virtual int login(const LogonInfo &info, bool sync=true);
+    virtual int login(const LogonInfo &info, bool sync=false);
 
     /** @brief 退出。 */
-    virtual int logout(const LogonInfo &info,  bool sync);
+    virtual int logout(bool sync=false);
 
     /** @brief 请求查询合约 */
 	virtual int reqContract(Contract *c, bool sync=false);
@@ -58,18 +61,44 @@ public:
     virtual int order(const Order &order, bool sync=false);
 
     /** @brief 撤单操作请求 */
-	virtual int cancel_order(int orderSeq, bool sync=false);
+	virtual int cancel_order(const Order& order, 
+                             bool sync=false);
+
+    inline virtual std::string nextRequestId() {
+        std::ostringstream ss;
+        ss << "ctp." << (++request_id_);
+        return ss.str();
+    }
+
+    inline std::string requestId2str(int requestId) {
+        std::ostringstream ss;
+        ss << "ctp." << requestId;
+        return ss.str();
+    }
+ 
+    inline virtual std::string api() const  {
+        return "ctp";
+    }
+
+    inline virtual std::string userId() const {
+        return user_id_;
+    }
 
  protected:
+    /** @brief 登陆的回调函数。*/
+    virtual void on_login(const OperateStatus& ops){ }
+
+    /** @brief 登出的回调函数。*/
+    virtual void on_logout(const OperateStatus& ops){ }
 
     /** @brief tick数据到达回调函数。*/
-    virtual void on_tick(const TickData &tick) { }
+    virtual void on_tick(const OperateStatus& ops, const TickData &tick) { }
     
     /** @brief 撤单回调 */
-    virtual void on_cancel_order(Order order) { }
+    virtual void on_cancel_order(const OperateStatus& ops, Order order) { }
 
     /** @brief 报单到达交易所回调 */
-    virtual void on_order(const Order &order) { }
+    virtual void on_order(const OperateStatus& ops, const Order &order) { }
 
     /** @brief 报单成交回调 */
     virtual void on_transaction(const Transaction &tans) { }
@@ -78,10 +107,10 @@ public:
     virtual void on_contract(const Contract &contract) { }
 
     /** @brief 资金查询回调 */
-    virtual void on_captial(const Captial &cap) { }
+    virtual void on_captial(const OperateStatus& ops, const Captial &cap) { }
 
     /** @brief 持仓查询回调 */
-    virtual void on_position(const Position &pos) { }
+    virtual void on_position(const OperateStatus& ops, const Position &pos) { }
 
     //-------------------------------------------------------
  private:
@@ -92,25 +121,27 @@ public:
                                    const char* trading_day,
                                    bool sync=false);
 	///投资者结算结果确认
-	virtual int settlementInfoConfirm(bool sync=false);
+	virtual int settlementInfoConfirm(const char* brokerId, 
+                                      const char* userId, 
+                                      const int   requestId,
+                                      bool sync=false);
 
     /// 注册前置地址
     virtual void registerFront(char *pszFrontAddress, bool sync=false);
 
-//	inline void synUnlock() { if (locked_) locked_ = false; syn_flag_.unlock(); }
 
 	inline void notify() {
-		std::unique_lock <std::mutex> lock(syn_flag_);
-		locked_ = false;
-		m_cond.notify_all();
+        if (locked_){
+		    std::unique_lock <std::mutex> lock(syn_flag_);
+		    locked_ = false;
+		    m_cond.notify_all();
+        }
 	}
 
     inline void wait(bool towait) 
 	{ 
 		if(towait) 
 		{ 
-//			syn_flag_.lock(); 
-//			syn_flag_.unlock();
 			std::unique_lock<std::mutex> lock(syn_flag_);
 			locked_ = true;
 			m_cond.wait(lock);
@@ -131,6 +162,9 @@ private:
 
 	/// 登录请求响应
 	virtual void OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,	CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
+
+	///登出请求响应
+	virtual void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 
 	///投资者结算结果确认响应
 	virtual void OnRspSettlementInfoConfirm(CThostFtdcSettlementInfoConfirmField *pSettlementInfoConfirm, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
@@ -169,9 +203,7 @@ private:
 	/// 是否收到成功的响应
 	bool IsErrorRspInfo(CThostFtdcRspInfoField *pRspInfo);
 
-//   inline void synLock() { syn_flag_.try_lock(); locked_ = true;}
-
-    inline int nextRequestId() { return ++request_id_; }
+    inline int currentRequestId() { return request_id_; }
 
  private:
     int                     front_id_;	            ///< 前置编号
@@ -179,13 +211,15 @@ private:
     TThostFtdcBrokerIDType  broker_id_;		        ///< 公司代码
     TThostFtdcUserIDType    user_id_;		        ///< 投资者代码
 
-    int                     request_id_;            ///< 会话编号
+    static int              request_id_;            ///< 会话编号
     int                     order_ref_;             ///< 订单编号
     CThostFtdcTraderApi     *api_;                  ///< 请求实例
 
     std::mutex              syn_flag_;              ///< 同步
     std::atomic<bool>       locked_;                ///< 是否被锁住，用来决定解锁操作是否执行。
 	std::condition_variable m_cond;					//条件变量
+
+    LoggerPtr logger;
 };
 
 } /* QuantDigger */

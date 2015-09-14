@@ -17,6 +17,15 @@ ExchType map2QDExchType(const char* str_exch) throw (Util::InvalidParamException
     // 中国金融期货交易所
     if(strcmp(str_exch, "CFFEX") == 0)
         return '4';
+    //上海证券交易所
+    if(strcmp(str_exch, "SSE") == 0)
+        return '5';
+    //深圳证券交易所
+    if(strcmp(str_exch, "SZSE") == 0)
+        return '6';
+    //测试专用交易所
+    if(strcmp(str_exch, "CC") == 0)
+        return '7';
     throw Util::InvalidParamException("无效的编码: ", str_exch);
 }
 
@@ -25,7 +34,10 @@ std::string mapFromQDExchType(ExchType c) throw (Util::InvalidParamException) {
         case '1': return "SHFE";
         case '2': return "CZCE";
         case '3': return "DCE";
-        case '4': return "CFFEX"; 
+        case '4': return "CFFEX";
+        case '5': return "SSE";
+        case '6': return "SZSE";
+        case '7': return "CC";
         default: throw Util::InvalidParamException("无效的编码: ", &c);
     }
     return "";
@@ -42,6 +54,10 @@ const char* map2ReadableExchType(ExchType type) throw (Util::InvalidParamExcepti
             return "大商";
         case '4':
             return "中金";
+        case '5':
+            return "上证";
+        case '6':
+            return "深证";
         default: throw Util::InvalidParamException("无效的编码: ", &type);
     }
     return "";

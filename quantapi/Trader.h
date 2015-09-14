@@ -30,10 +30,10 @@ class Trader {
      * @param info 登录信息
      * @param sync 是否同步调用
      */
-    virtual int login(const LogonInfo &info, bool sync=true) = 0;
+    virtual int login(const LogonInfo &info, bool sync=false) = 0;
 
     /** @brief 退出。 */
-    virtual int logout(const LogonInfo &info,  bool sync) = 0;
+    virtual int logout(bool sync=false) = 0;
 
     /** @brief 请求查询合约 */
 	virtual int reqContract(Contract *c, bool sync=false) = 0;
@@ -44,6 +44,12 @@ class Trader {
     /** @brief 请求查询资金账户 */
 	virtual int reqCaptial(bool sync=false) = 0;
 
+    /** @brief 请求查询当日委托*/
+	virtual int orderToday(bool sync=false) { }
+
+    /** @brief 请求查询当日成交*/
+	virtual int transToday(bool sync=false) { }
+
     /** @brief 请求查询投资者持仓 */
 	virtual int reqPosition(const Contract &contract, bool sync=false) = 0;
 
@@ -53,16 +59,26 @@ class Trader {
     /** @brief 撤单操作请求 */
 	virtual int cancel_order(int orderSeq, bool sync=false) = 0;
 
+    virtual std::string api() const = 0;
+
+    virtual std::string userId() const = 0;
+
  protected:
+    /** @brief 登陆的回调函数。*/
+    virtual void on_login(const OperateStatus& ops) = 0;
+
+    /** @brief 登出的回调函数。*/
+    virtual void on_logout(const OperateStatus& ops) = 0;
+
 
     /** @brief tick数据到达回调函数。*/
-    virtual void on_tick(const TickData &tick) = 0;
+    virtual void on_tick(const OperateStatus& ops, const TickData &tick) = 0;
     
     /** @brief 撤单回调 */
-    virtual void on_cancel_order(Order order) = 0;
+    virtual void on_cancel_order(const OperateStatus& ops, Order order) = 0;
 
     /** @brief 报单到达交易所回调 */
-    virtual void on_order(const Order &order) = 0;
+    virtual void on_order(const OperateStatus& ops, const Order &order) = 0;
 
     /** @brief 报单成交回调 */
     virtual void on_transaction(const Transaction &tans) = 0;
@@ -71,10 +87,10 @@ class Trader {
     virtual void on_contract(const Contract &contract) = 0;
 
     /** @brief 资金查询回调 */
-    virtual void on_captial(const Captial &cap) = 0;
+    virtual void on_captial(const OperateStatus& ops, const Captial &cap) = 0;
 
     /** @brief 持仓查询回调 */
-    virtual void on_position(const Position &pos) = 0;
+    virtual void on_position(const OperateStatus& ops, const Position &pos) = 0;
 
  protected:
      void set_logined(bool b){

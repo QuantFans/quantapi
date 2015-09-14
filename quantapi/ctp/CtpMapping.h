@@ -174,6 +174,7 @@ inline void fromCtpTransaction(const CThostFtdcTradeField &ctrans, Transaction *
 //	trans->price_type = fromCtpPriceType 
 	trans->side = fromCtpTradeSide(ctrans.OffsetFlag);
 	trans->volume = ctrans.Volume;
+    trans->trader_id = atoi(ctrans.TraderID);
 }
 
 // 被撤单回报调用。 
@@ -221,6 +222,8 @@ inline void fromCtpPosition(const CThostFtdcInvestorPositionField &cpos, Positio
 	pos->use_margin = cpos.UseMargin;
 	pos->volume = cpos.TodayPosition;
 	pos->yd_volume = cpos.YdPosition;
+    pos->profit = cpos.PositionProfit;
+    pos->cost = cpos.PositionCost;
 }
 
 inline void fromCtpTick(const CThostFtdcDepthMarketDataField &ctick, TickData *tick) {
@@ -228,13 +231,44 @@ inline void fromCtpTick(const CThostFtdcDepthMarketDataField &ctick, TickData *t
 	if (ctick.ExchangeID != NULL && ctick.ExchangeID[0] != '\0')
 		tick->contract.exch_type = map2QDExchType(ctick.ExchangeID);
 	tick->create_time = std::chrono::system_clock::now();
-	char dt[19] = { 0 };
-	strcpy(dt, ctick.TradingDay);
-	strcat(dt, ctick.UpdateTime);
+	char dt[20] = { 0 };
+    int year = 0, month = 0, day = 0;
+    sscanf(ctick.TradingDay, "%4d", &year);
+    sscanf(ctick.TradingDay+4, "%2d", &month);
+    sscanf(ctick.TradingDay+6, "%2d", &day);
+    sprintf(dt,"%4d-%02d-%02d %8s",year,month,day,ctick.UpdateTime);
 	tick->dt = Util::strDateTime2TimePoint(dt);
 	tick->millisec = ctick.UpdateMillisec;
 	tick->price = ctick.LastPrice;
 	tick->volume = ctick.Volume;
+    tick->total_price = ctick.Turnover;
+    tick->pre_close = ctick.PreClosePrice;
+    tick->average = ctick.AveragePrice;
+    tick->open = ctick.OpenPrice;
+    tick->high = ctick.HighestPrice;
+    tick->low = ctick.LowestPrice;
+
+    tick->buy01_price = ctick.BidPrice1;
+    tick->buy01_volume = ctick.BidVolume1;
+    tick->buy02_price = ctick.BidPrice2;
+    tick->buy02_volume = ctick.BidVolume2;
+    tick->buy03_price = ctick.BidPrice3;
+    tick->buy03_volume = ctick.BidVolume3;
+    tick->buy04_price = ctick.BidPrice4;
+    tick->buy04_volume = ctick.BidVolume4;
+    tick->buy05_price = ctick.BidPrice5;
+    tick->buy05_volume = ctick.BidVolume5;
+
+    tick->sell01_price = ctick.AskPrice1;
+    tick->sell01_volume = ctick.AskVolume1;
+    tick->sell02_price = ctick.AskPrice2;
+    tick->sell02_volume = ctick.AskVolume2;
+    tick->sell03_price = ctick.AskPrice3;
+    tick->sell03_volume = ctick.AskVolume3;
+    tick->sell04_price = ctick.AskPrice4;
+    tick->sell04_volume = ctick.AskVolume4;
+    tick->sell05_price = ctick.AskPrice5;
+    tick->sell05_volume = ctick.AskVolume5;
 }
 
 /////投机
