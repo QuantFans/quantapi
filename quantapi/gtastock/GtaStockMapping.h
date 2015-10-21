@@ -347,35 +347,53 @@ inline void sellVolume10_func(const IFieldValue& iValue, TickData* tick)
 }
 
 //--------------------------------------------------------------------
-inline void packet_time_func(const IFieldValue& iValue, TickData* tick)
+inline void tick_time_func(const IFieldValue& iValue, TickData* tick)
 {
-    long long PacketTimeStamp;
-    iValue.GetLonglong(PacketTimeStamp);
+    //long long PacketTimeStamp;
+    int time;
+    iValue.GetInt(time);
+    //std::cout << time << std::endl;
     //std::cout << "Exchange TimeStamp:"  << PacketTimeStamp << std::endl;
     
     tick->create_time =  std::chrono::system_clock::now();
-//    std::time_t tt = std::chrono::system_clock::to_time_t(tick->create_time);
-//    std::tm* tm = std::localtime(&tt);
+    std::time_t tt = std::chrono::system_clock::to_time_t(tick->create_time);
+    std::tm* tm = std::localtime(&tt);
 //    int now_hour = tm->tm_hour;
 
-    std::string timeStamp = Util::sth2string(PacketTimeStamp);
+//---
+//    std::string timeStamp = Util::sth2string(time);
     int year,month,day,hour,minute,second,milliseconds;
-    sscanf(timeStamp.c_str(), "%4d", &year);
-    sscanf(timeStamp.c_str()+4, "%2d", &month);
-    sscanf(timeStamp.c_str()+6, "%2d", &day);
-    sscanf(timeStamp.c_str()+8, "%2d", &hour);
-    sscanf(timeStamp.c_str()+10, "%2d", &minute);
-    sscanf(timeStamp.c_str()+12, "%2d", &second);
-    sscanf(timeStamp.c_str()+14, "%3d", &milliseconds);
+    year = tm->tm_year+1900;
+//    sscanf(tm->tm_year, "%4d", &year);
+//    sscanf(tm->tm_month, "%2d", &month);
+//    sscanf(tm->tm_day, "%2d", &day);
+    month = tm->tm_mon+1;
+    day = tm->tm_mday;
+    hour = time/10000000;
+    minute = (time%10000000)/100000;
+    second = ((time%10000000)%100000)/1000;
+    milliseconds = ((time%10000000)%100000)%1000;
+//    sscanf(timeStamp.c_str()+10, "%2d", &minute);
+//    sscanf(timeStamp.c_str()+12, "%2d", &second);
+//    sscanf(timeStamp.c_str()+14, "%3d", &milliseconds);
 
 //    if (hour + 8 == now_hour)
 //        hour += 8;
-    
+
+//--
     char dt[20];
     sprintf(dt, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d", year, month, day, hour, minute, second);
-    
+//    std::cout << dt << std::endl;
     tick->dt = Util::strDateTime2TimePoint(dt);
     tick->millisec = milliseconds; 
+}
+
+
+inline void tick_date_func(const IFieldValue& iValue, TickData* tick) 
+{
+    int date;
+    iValue.GetInt(date);
+    std::cout << "date:" << date << std::endl;
 }
 
 /*
@@ -516,8 +534,10 @@ FieldProcessor processor[] = {
     FieldProcessor(FID_SellVolume09, sellVolume09_func),
     FieldProcessor(FID_SellVolume10, sellVolume10_func),
 
-    FieldProcessor(FID_PacketTimeStamp, packet_time_func),
-//    FieldProcessor(FID_LocalTimeStamp, provider_time_func),
+    //FieldProcessor(FID_PacketTimeStamp, packet_time_func),
+    //FieldProcessor(FID_LocalTimeStamp, provider_time_func),
+    //FieldProcessor(FID_TradeDate, tick_date_func),
+    FieldProcessor(FID_Time, tick_time_func),
     FieldProcessor(FID_Symbol, contract_func),
     FieldProcessor(FID_PreClosePrice, preclose_func),
     FieldProcessor(FID_OpenPrice, open_func),
